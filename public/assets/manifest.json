@@ -73,6 +73,18 @@
       "license": "CC0",
       "source": "https://polyhaven.com/a/garden_gnome",
       "optional": true
+    },
+    "crystal_small": {
+      "path": "assets/models/crystal_small.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (Crystal Crossroads / Crystal_Small_01)",
+      "optional": true
+    },
+    "crystal_cluster": {
+      "path": "assets/models/crystal_cluster.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (Crystal Crossroads / Crystal_Cluster)",
+      "optional": true
     }
   },
   "sfx": {

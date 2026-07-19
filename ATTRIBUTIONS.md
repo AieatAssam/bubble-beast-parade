@@ -35,6 +35,18 @@ changes). Files live in `public/assets/models/`.
 
 Poly Haven assets are CC0 (public domain): https://polyhaven.com/license
 
+## 3D Models (Polygonal Mind, CC0)
+
+From the Polygonal Mind Open Source Initiative "Crystal Crossroads" pack, GLB
+conversions by ToxSam: https://github.com/ToxSam/cc0-models-Polygonal-Mind
+
+| Asset | File | Use in game |
+|---|---|---|
+| Crystal_Small_01 | `public/assets/models/crystal_small.glb` | Wand-charge gem HUD |
+| Crystal_Cluster | `public/assets/models/crystal_cluster.glb` | Garden crystal formations |
+
+**Modified:** No (used as-is; recoloured at runtime via materials).
+
 ## Everything else
 
 All creatures, garden decorations, the greenhouse, the carousel centrepiece,

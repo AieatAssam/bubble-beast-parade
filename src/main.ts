@@ -233,7 +233,7 @@ async function boot(): Promise<void> {
       wand.update(dt, t, pool.active);
       fx.update(dt);
       garden.update(dt, t, game.intensity);
-      hud.update(game);
+      hud.update(game, dt, t);
 
       // Pop-driven camera shake (suppressed under reduced motion)
       const shake = game.reducedMotion ? 0 : fx.shakeEnergy;

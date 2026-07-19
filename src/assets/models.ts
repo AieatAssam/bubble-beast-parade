@@ -18,7 +18,8 @@ export type ModelName =
   | "Lantern_01"
   | "horse_statue_01"
   | "gothic_statue"
-  | "garden_gnome";
+  | "garden_gnome"
+  | "crystal_cluster";
 
 /** Target world height (m) each model is normalised to. */
 const TARGET_HEIGHT: Record<ModelName, number> = {
@@ -33,6 +34,7 @@ const TARGET_HEIGHT: Record<ModelName, number> = {
   horse_statue_01: 1.05,
   gothic_statue: 2.4,
   garden_gnome: 0.85,
+  crystal_cluster: 1.3,
 };
 
 export type ModelLibrary = Map<ModelName, THREE.Group>;

@@ -74,6 +74,9 @@ export function createGarden(models: ModelLibrary): Garden {
   place("coast_rocks_05", -4.2, 5.2, 0.7, 1);
   place("coast_rocks_05", 8.6, 5.6, 2.1, 0.7);
   place("coast_rocks_05", -8.9, -1.5, 3.6, 0.85);
+  place("crystal_cluster", 3.9, 4.9, 0.8, 1);
+  place("crystal_cluster", -9.6, -3.2, 2.3, 1.4);
+  place("crystal_cluster", 9.8, -1.8, 4.1, 0.9);
   place("gothic_statue", 6.8, 1.6, -0.5, 1);
   place("garden_gnome", -4.6, 4.3, 2.6, 1);
 

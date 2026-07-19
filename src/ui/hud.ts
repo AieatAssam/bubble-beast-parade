@@ -1,6 +1,6 @@
-import { CHARGE_OVERCHARGE_MAX, CHARGE_MAX } from "../data/bubbleTypes";
 import { COLOR_DEFS } from "../data/colors";
 import type { Game } from "../systems/game";
+import { ChargeGems } from "./chargeGems";
 
 /** Gameplay HUD: timer, score, chain, wand crystals, colour target, pause. */
 export class Hud {
@@ -11,7 +11,7 @@ export class Hud {
   private chargesEl: HTMLDivElement;
   private targetEl: HTMLDivElement;
   private effectBanner: HTMLDivElement;
-  private crystals: HTMLDivElement[] = [];
+  private gems: ChargeGems;
   private lastChain = 0;
 
   constructor(layer: HTMLElement, onPause: () => void) {
@@ -38,12 +38,8 @@ export class Hud {
     this.chargesEl = document.createElement("div");
     this.chargesEl.id = "charges";
     this.chargesEl.className = "hud-pill";
-    for (let i = 0; i < CHARGE_OVERCHARGE_MAX; i++) {
-      const c = document.createElement("div");
-      c.className = "crystal";
-      this.crystals.push(c);
-      this.chargesEl.appendChild(c);
-    }
+    this.chargesEl.style.padding = "2px 8px";
+    this.gems = new ChargeGems(this.chargesEl);
     const pauseBtn = document.createElement("button");
     pauseBtn.className = "btn secondary";
     pauseBtn.textContent = "⏸ Pause";
@@ -72,7 +68,7 @@ export class Hud {
     setTimeout(() => chip.remove(), ms);
   }
 
-  update(game: Game): void {
+  update(game: Game, dt = 0.016, t = 0): void {
     this.scoreEl.textContent = `Score ${game.score.toLocaleString()}`;
     const secs = Math.max(0, Math.ceil(game.timeLeft));
     this.timerEl.textContent = String(secs);
@@ -100,16 +96,7 @@ export class Hud {
       this.targetEl.style.display = "none";
     }
 
-    for (let i = 0; i < this.crystals.length; i++) {
-      const c = this.crystals[i]!;
-      c.classList.remove("full", "regen", "over");
-      if (i < game.charges) c.classList.add(i >= CHARGE_MAX ? "over" : "full");
-      else if (i === game.charges && game.chargeProgress > 0) {
-        c.classList.add("regen");
-        c.style.opacity = String(0.25 + game.chargeProgress * 0.5);
-      }
-      if (i === CHARGE_MAX) c.style.display = game.charges > CHARGE_MAX ? "block" : "none";
-    }
+    this.gems.update(dt, t, game.charges, game.chargeProgress);
   }
 }
 
