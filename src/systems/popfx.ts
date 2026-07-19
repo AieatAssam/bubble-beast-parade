@@ -79,6 +79,8 @@ export class PopFX {
   private confetti: Confetti[] = [];
   private vignette: HTMLDivElement;
   private banner: HTMLDivElement;
+  private fever!: HTMLDivElement;
+  private feverHue = 0;
   private scene: THREE.Scene;
   private hud: HTMLElement;
   reducedMotion = false;
@@ -178,6 +180,13 @@ export class PopFX {
       "position:absolute;inset:0;pointer-events:none;opacity:0;z-index:25;" +
       "transition:opacity .12s ease-out;";
     this.hud.appendChild(this.vignette);
+
+    // Fever-mode rainbow edge glow (persistent while fever active)
+    this.fever = document.createElement("div");
+    this.fever.style.cssText =
+      "position:absolute;inset:0;pointer-events:none;opacity:0;z-index:24;transition:opacity .4s;" +
+      "box-shadow:inset 0 0 90px 24px rgba(255,95,168,.5), inset 0 0 40px 10px rgba(53,215,232,.5);";
+    this.hud.appendChild(this.fever);
 
     // Combo milestone banner
     this.banner = document.createElement("div");
@@ -349,8 +358,43 @@ export class PopFX {
     }, 900);
   }
 
+  /** Toggle the persistent fever rainbow edge. */
+  setFever(on: boolean): void {
+    this.fever.style.opacity = on && !this.reducedFlash ? "1" : "0";
+  }
+
+  /** Glowing motes that fly from a pop to the score HUD (pure DOM, cheap). */
+  scoreMotes(x: number, y: number, css: string, count = 4): void {
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement("div");
+      const size = 8 + Math.random() * 8;
+      el.style.cssText =
+        `position:absolute;left:${x + (Math.random() - 0.5) * 40}px;top:${y + (Math.random() - 0.5) * 40}px;` +
+        `width:${size}px;height:${size}px;border-radius:50%;pointer-events:none;z-index:28;` +
+        `background:radial-gradient(circle,#fff, ${css});box-shadow:0 0 12px ${css};` +
+        `transition:all ${0.5 + Math.random() * 0.25}s cubic-bezier(.4,0,.8,.4);opacity:1;`;
+      this.hud.appendChild(el);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          el.style.left = "70px";
+          el.style.top = "34px";
+          el.style.opacity = "0.2";
+          el.style.transform = "scale(0.4)";
+        }),
+      );
+      setTimeout(() => el.remove(), 850);
+    }
+  }
+
   update(dt: number): void {
     const motion = this.reducedMotion ? 0.6 : 1;
+    // Fever edge slowly cycles hue
+    if (this.fever.style.opacity === "1") {
+      this.feverHue = (this.feverHue + dt * 90) % 360;
+      const a = `hsla(${this.feverHue},90%,65%,.55)`;
+      const b = `hsla(${(this.feverHue + 140) % 360},90%,65%,.5)`;
+      this.fever.style.boxShadow = `inset 0 0 90px 24px ${a}, inset 0 0 40px 10px ${b}`;
+    }
     this.shakeEnergy = Math.max(0, this.shakeEnergy - dt * 2.2);
 
     const tmpM = new THREE.Matrix4();

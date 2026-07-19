@@ -162,7 +162,7 @@ export class BubblePool {
 
     // Beast inside (not for prism)
     if (kind !== "prism") {
-      b.beast = buildCreatureMesh(creature);
+      b.beast = buildCreatureMesh(creature, 1, color);
       b.beast.scale.setScalar(1.1);
       b.beast.position.y = -0.15;
       b.group.add(b.beast);

@@ -25,6 +25,8 @@ export interface CaptureRecord {
   count: number;
   bestChain: number;
   totalPoints: number;
+  /** Colour-variant collection: colour family -> captures in that colour. */
+  variants?: Record<string, number>;
 }
 
 export interface RunRecord {

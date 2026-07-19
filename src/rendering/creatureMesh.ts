@@ -7,9 +7,13 @@ import type { CreatureDef } from "../data/creatures";
  * creature (SPEC §1). Each archetype is a distinct silhouette built from
  * primitives with emissive accents so nothing ever looks grey or blocky.
  */
-export function buildCreatureMesh(def: CreatureDef, detail = 1): THREE.Group {
+export function buildCreatureMesh(
+  def: CreatureDef,
+  detail = 1,
+  colorOverride?: import("../data/colors").ColorFamily,
+): THREE.Group {
   const g = new THREE.Group();
-  const col = COLOR_DEFS[def.color];
+  const col = COLOR_DEFS[colorOverride ?? def.color];
   const bodyMat = new THREE.MeshStandardMaterial({
     color: col.hex,
     roughness: 0.35,

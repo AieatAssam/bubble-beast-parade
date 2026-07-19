@@ -4,6 +4,8 @@ import { BUBBLE_TYPES, CHARGE_REGEN_SECONDS } from "../data/bubbleTypes";
 import { PRISM_OUTCOMES } from "../data/prism";
 import { COLOR_DEFS } from "../data/colors";
 import { buildCreatureMesh, animateCreature } from "../rendering/creatureMesh";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { COLOR_FAMILIES, type ColorFamily } from "../data/colors";
 import {
   exportSave, importSave, validateSave, resetAllData, localLeaderboard,
   type CaptureRecord, type ProfileRecord, type RunRecord,
@@ -213,7 +215,15 @@ export class Screens {
         `<div style="font-weight:900;color:${swatch}">${cap ? def.name : "???"}</div>` +
         `<div class="rarity" style="color:${swatch}">${RARITY_LABEL[def.rarity]}</div>` +
         (cap
-          ? `<div style="font-size:12.5px;opacity:.85">Caught ×${cap.count} · best chain ${cap.bestChain}</div>`
+          ? `<div style="font-size:12.5px;opacity:.85">Caught ×${cap.count} · best chain ${cap.bestChain}</div>` +
+            `<div style="display:flex;gap:4px;justify-content:center;margin-top:6px">` +
+            COLOR_FAMILIES.map((f) => {
+              const got = (cap.variants?.[f] ?? 0) > 0;
+              return `<span title="${f}" style="width:11px;height:11px;border-radius:50%;` +
+                `background:${got ? COLOR_DEFS[f].css : "transparent"};` +
+                `border:1.5px solid ${got ? COLOR_DEFS[f].css : "rgba(255,255,255,.25)"};"></span>`;
+            }).join("") +
+            `</div>`
           : `<div style="font-size:12.5px;opacity:.6">Not yet captured</div>`);
       if (cap) card.addEventListener("click", () => this.showInspect(def, cap));
       grid.append(card);
@@ -281,23 +291,63 @@ export class Screens {
     );
     plinth.position.y = -0.35;
     scene.add(plinth);
-    const mesh = buildCreatureMesh(def, 1.4);
+    let mesh = buildCreatureMesh(def, 1.4);
     mesh.position.y = -0.28;
     scene.add(mesh);
+
+    // Full 3D viewer: drag to orbit, wheel/pinch to zoom; auto-spins until touched
+    const controls = new OrbitControls(cam, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 3;
+    controls.minDistance = 0.9;
+    controls.maxDistance = 4;
+    controls.target.set(0, 0.05, 0);
+    controls.addEventListener("start", () => (controls.autoRotate = false));
+
+    // Colour-variant swatches: view every colour you have captured
+    const owned = COLOR_FAMILIES.filter((f) => (cap.variants?.[f] ?? 0) > 0);
+    if (owned.length > 0) {
+      const swatches = document.createElement("div");
+      swatches.style.cssText = "display:flex;gap:10px;justify-content:center;margin-top:2px;";
+      for (const f of owned) {
+        const btn = document.createElement("button");
+        btn.title = `${f} variant (×${cap.variants?.[f] ?? 0})`;
+        btn.style.cssText =
+          `width:26px;height:26px;border-radius:50%;cursor:pointer;background:${COLOR_DEFS[f].css};` +
+          `border:2.5px solid rgba(255,255,255,.7);box-shadow:0 0 10px ${COLOR_DEFS[f].css};`;
+        btn.addEventListener("click", () => {
+          sound.ui();
+          scene.remove(mesh);
+          mesh = buildCreatureMesh(def, 1.4, f as ColorFamily);
+          mesh.position.y = -0.28;
+          scene.add(mesh);
+          rim.color.setHex(COLOR_DEFS[f].emissive);
+        });
+        swatches.append(btn);
+      }
+      wrap.insertBefore(swatches, info);
+      const hint = document.createElement("div");
+      hint.style.cssText = "font-size:12.5px;opacity:.7;";
+      hint.textContent = "Drag to rotate · scroll to zoom · tap a colour to view that variant";
+      wrap.insertBefore(hint, info);
+    }
 
     let raf = 0;
     const t0 = performance.now();
     const loop = (): void => {
       const t = (performance.now() - t0) / 1000;
-      mesh.rotation.y = t * 0.8; // turntable
       animateCreature(mesh, t);
-      mesh.rotation.y = t * 0.8; // keep turntable dominant
+      mesh.rotation.y = 0; // orbit controls own the camera; keep the beast steady
+      controls.update();
       r.render(scene, cam);
       raf = requestAnimationFrame(loop);
     };
     loop();
     this.inspectStop = () => {
       cancelAnimationFrame(raf);
+      controls.dispose();
       r.dispose();
       this.inspectRenderer = null;
       this.inspectStop = null;

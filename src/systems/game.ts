@@ -51,6 +51,8 @@ export class Game {
   effectsTriggered: string[] = [];
   carnivalColor: ColorFamily | null = null;
   hitStop = 0;
+  slowMo = 0;
+  fever = false;
   lastPopAt = -99;
   grandSpawned = false;
   capturedIds = new Set<string>();
@@ -99,6 +101,9 @@ export class Game {
     this.carnivalColor = null;
     this.hitStop = 0;
     this.grandSpawned = false;
+    this.fever = false;
+    this.fx.setFever(false);
+    this.slowMo = 0;
     this.elapsed = 0;
     this.spawnTimer = 0.5;
     sound.startMusic();
@@ -151,11 +156,14 @@ export class Game {
   update(dt: number, t: number): void {
     if (!this.running || this.paused) return;
 
-    // Hit-stop: freeze gameplay time briefly
+    // Hit-stop freeze, then rare-capture slow-mo
     let timeScale = 1;
     if (this.hitStop > 0) {
       this.hitStop -= dt;
       timeScale = this.reducedMotion ? 0.6 : 0;
+    } else if (this.slowMo > 0) {
+      this.slowMo -= dt;
+      timeScale = this.reducedMotion ? 1 : 0.35;
     }
     const gdt = dt * timeScale;
 
@@ -278,6 +286,10 @@ export class Game {
     this.chain = 0;
     this.chainColor = null;
     this.chainTimer = 0;
+    if (this.fever) {
+      this.fever = false;
+      this.fx.setFever(false);
+    }
   }
 
   get chainMultiplier(): number {
@@ -328,8 +340,22 @@ export class Game {
     score = Math.round(score * this.chainMultiplier);
     const carnival = this.effects.find((e) => e.outcome.id === "colorCarnival");
     if (carnival && this.carnivalColor === b.color) score *= 3;
+    if (this.fever) score *= 2;
     this.score += score;
     this.captureCount++;
+
+    // FEVER: chain 8+ doubles everything until the chain breaks
+    if (!this.fever && this.chain >= 8) {
+      this.fever = true;
+      this.fx.setFever(true);
+      this.fx.showBanner("🔥 FEVER ×2! 🔥", "#ff5fa8");
+      sound.fanfare();
+    }
+
+    // Rare-and-up captures earn a brief slow-motion flourish
+    if (b.kind !== "prism" && (b.creature.rarity === "rare" || b.creature.rarity === "epic" || b.creature.rarity === "mythic")) {
+      this.slowMo = 0.45;
+    }
 
     // Golden/Grand: refund or overcharge — reward the save
     const big = b.kind === "golden" || b.kind === "grand";
@@ -352,6 +378,7 @@ export class Game {
     this.fx.burst(b.pos, b.color, big);
     this.fx.shellShards(b.pos, b.color, b.radius, big);
     this.fx.scorePopup(screen.x, screen.y, `+${score}`, b.color, big);
+    this.fx.scoreMotes(screen.x, screen.y, COLOR_DEFS_CSS[b.color], big ? 7 : 4);
 
     // Dopamine layer: milestone celebrations that escalate with the chain
     const css = COLOR_DEFS_CSS[b.color];
@@ -474,6 +501,14 @@ export class Game {
         this.events.onPrism(outcome);
       }, 700);
     }
+  }
+
+  /** External bonus (e.g. new colour variant): adds score with celebration. */
+  addBonus(points: number, label: string, css: string): void {
+    this.score += points;
+    this.fx.showBanner(label, css);
+    this.fx.vignetteFlash(`${css}66`);
+    sound.ping();
   }
 
   private worldToScreen(pos: THREE.Vector3): { x: number; y: number } {

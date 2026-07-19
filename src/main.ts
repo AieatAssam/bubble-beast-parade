@@ -113,6 +113,19 @@ async function boot(): Promise<void> {
           hud.announce("🌟 A MYTHIC joins the parade! 🌟", 4200);
         }
       }
+      // Colour-variant collection: same beast in a new colour is a real reward
+      const variant = e.bubble.color;
+      rec.variants ??= {};
+      const isNewVariant = !rec.variants[variant];
+      rec.variants[variant] = (rec.variants[variant] ?? 0) + 1;
+      if (isNewVariant && rec.count > 0) {
+        const bonus = { common: 150, uncommon: 250, rare: 450, epic: 800, mythic: 1500 }[def.rarity];
+        game.addBonus(
+          bonus,
+          `🎨 NEW ${variant.toUpperCase()} ${def.name.toUpperCase()}! +${bonus}`,
+          "#c79bff",
+        );
+      }
       rec.count++;
       rec.bestChain = Math.max(rec.bestChain, e.chain);
       rec.totalPoints += e.score;
