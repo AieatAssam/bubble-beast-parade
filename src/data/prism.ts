@@ -45,7 +45,7 @@ export const PRISM_OUTCOMES: PrismOutcomeDef[] = [
   },
 ];
 
-if (import.meta.env.DEV) {
+{
   const total = PRISM_OUTCOMES.reduce((a, o) => a + o.odds, 0);
   if (total !== 100) throw new Error(`Prism odds must sum to 100, got ${total}`);
 }
