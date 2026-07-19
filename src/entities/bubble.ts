@@ -79,9 +79,11 @@ function makeShellMaterial(kind: BubbleKind, color: ColorFamily): THREE.MeshPhys
     case "grand":
       mat.color.setHex(0xffd980);
       mat.emissive = new THREE.Color(0xffaa22);
-      mat.emissiveIntensity = 0.55;
+      mat.emissiveIntensity = 1.1;
       mat.metalness = 0.3;
       mat.opacity = 0.9;
+      mat.iridescence = 1;
+      mat.iridescenceThicknessRange = [300, 900];
       break;
     default:
       break;
@@ -190,17 +192,41 @@ export class BubblePool {
     }
     if (kind === "golden" || kind === "grand") {
       const filigree = new THREE.Mesh(
-        new THREE.TorusKnotGeometry(1.05, 0.03, 64, 8, 2, 3),
+        new THREE.TorusKnotGeometry(1.05, 0.035, 64, 8, 2, 3),
         new THREE.MeshStandardMaterial({
           color: 0xffc23a,
-          emissive: 0xffaa22,
-          emissiveIntensity: 1.4,
+          emissive: 0xffcc44,
+          emissiveIntensity: 2.6,
           metalness: 0.9,
-          roughness: 0.2,
+          roughness: 0.15,
         }),
       );
       filigree.name = "filigree";
       b.group.add(filigree);
+      // Sparkle halo: orbiting golden motes make the prize unmissable
+      const HALO = 18;
+      const hgeo = new THREE.BufferGeometry();
+      const hpos = new Float32Array(HALO * 3);
+      for (let i = 0; i < HALO; i++) {
+        const a = (i / HALO) * Math.PI * 2;
+        hpos[i * 3] = Math.cos(a) * 1.5;
+        hpos[i * 3 + 1] = Math.sin(a * 3) * 0.35;
+        hpos[i * 3 + 2] = Math.sin(a) * 1.5;
+      }
+      hgeo.setAttribute("position", new THREE.BufferAttribute(hpos, 3));
+      const halo = new THREE.Points(
+        hgeo,
+        new THREE.PointsMaterial({
+          color: 0xffe08a,
+          size: kind === "grand" ? 0.22 : 0.15,
+          transparent: true,
+          opacity: 0.95,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      halo.name = "sparkleHalo";
+      b.group.add(halo);
     }
 
     // Start at the path point for our phase
@@ -269,7 +295,15 @@ export class BubblePool {
           } else if (child.name === "ribbon") {
             child.rotation.z = t * 1.2;
           } else if (child.name === "filigree") {
-            child.rotation.y = t * 0.6;
+            child.rotation.y = t * 0.9;
+            child.rotation.x = Math.sin(t * 1.3) * 0.4;
+            const fm = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+            fm.emissiveIntensity = 2.2 + Math.sin(t * 5) * 1.2;
+          } else if (child.name === "sparkleHalo") {
+            child.rotation.y = -t * 1.6;
+            child.rotation.z = Math.sin(t * 0.9) * 0.5;
+            (child as THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>).material.opacity =
+              0.7 + Math.sin(t * 6) * 0.3;
           }
         }
         if (b.kind !== "prism") animateCreature(b.beast, t + b.id);

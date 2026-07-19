@@ -145,5 +145,27 @@
       "optional": true
     }
   },
-  "notes": "Missing or failed entries always fall back to procedural geometry / synthesised WebAudio. The game must remain fully playable with an empty assets directory."
+  "notes": "Missing or failed entries always fall back to procedural geometry / synthesised WebAudio. The game must remain fully playable with an empty assets directory.",
+  "textures": {
+    "leafy_grass": {
+      "path": "assets/textures/leafy_grass_{diff,nor_gl,rough}_1k.jpg",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/leafy_grass"
+    },
+    "cobblestone_floor_08": {
+      "path": "assets/textures/cobblestone_floor_08_{diff,nor_gl,rough}_1k.jpg",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/cobblestone_floor_08"
+    },
+    "ganges_river_pebbles": {
+      "path": "assets/textures/ganges_river_pebbles_{diff,nor_gl,rough}_1k.jpg",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/ganges_river_pebbles"
+    },
+    "waternormals": {
+      "path": "assets/textures/waternormals.jpg",
+      "license": "MIT",
+      "source": "https://github.com/mrdoob/three.js"
+    }
+  }
 }

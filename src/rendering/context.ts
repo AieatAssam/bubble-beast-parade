@@ -48,9 +48,9 @@ export function createRenderContext(container: HTMLElement): RenderContext {
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(container.clientWidth, container.clientHeight),
-    0.55, // strength
-    0.6, // radius
-    0.82, // threshold
+    0.3, // strength
+    0.5, // radius
+    0.88, // threshold
   );
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
@@ -66,7 +66,7 @@ export function createRenderContext(container: HTMLElement): RenderContext {
     setEffectsQuality(q) {
       effectsQuality = q;
       bloom.enabled = q > 0;
-      bloom.strength = q === 2 ? 0.55 : 0.32;
+      bloom.strength = q === 2 ? 0.3 : 0.18;
     },
     render() {
       if (effectsQuality > 0) composer.render();

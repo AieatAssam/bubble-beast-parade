@@ -56,6 +56,22 @@ conversions by ToxSam: https://github.com/ToxSam/cc0-models-Polygonal-Mind
 All files under `public/assets/models/`. **Modified:** runtime material tints
 only; `flower_d` was mesh-simplified/compressed with `@gltf-transform/cli`.
 
+## PBR Textures (Poly Haven, CC0, 1k)
+
+| Texture | Files | Use in game |
+|---|---|---|
+| Leafy Grass | `leafy_grass_*_1k.jpg` | Garden ground |
+| Cobblestone Floor 08 | `cobblestone_floor_08_*_1k.jpg` | Carousel plinth |
+| Ganges River Pebbles | `ganges_river_pebbles_*_1k.jpg` | Pond bed |
+
+All under `public/assets/textures/`. Sources: https://polyhaven.com/a/leafy_grass,
+https://polyhaven.com/a/cobblestone_floor_08, https://polyhaven.com/a/ganges_river_pebbles.
+**Modified:** No (runtime colour tints only).
+
+### Water normals
+- `public/assets/textures/waternormals.jpg` — from the three.js examples
+  (https://github.com/mrdoob/three.js), MIT licence. Used for pond ripples.
+
 ## Everything else
 
 All creatures, garden decorations, the greenhouse, the carousel centrepiece,

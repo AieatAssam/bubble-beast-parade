@@ -33,6 +33,14 @@ function seededRandom(seed: number): () => number {
 export function createGarden(models: ModelLibrary): Garden {
   const group = new THREE.Group();
   const rng = seededRandom(20260719);
+  const texLoader = new THREE.TextureLoader();
+  const loadTex = (path: string, repeat: number, srgb = false): THREE.Texture => {
+    const t = texLoader.load(path);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(repeat, repeat);
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
   /** Animated real-model registry: gentle sway/swing/bob per archetype. */
   const swayers: { obj: THREE.Object3D; kind: "tree" | "lantern" | "flower" | "horse"; phase: number }[] = [];
 
@@ -74,45 +82,56 @@ export function createGarden(models: ModelLibrary): Garden {
   place("coast_rocks_05", -4.2, 5.2, 0.7, 1);
   place("coast_rocks_05", 8.6, 5.6, 2.1, 0.7);
   place("coast_rocks_05", -8.9, -1.5, 3.6, 0.85);
-  place("gothic_statue", 6.8, 1.6, -0.5, 1);
   place("garden_gnome", -4.6, 4.3, 2.6, 1);
 
-  // ---------- Ground: soft mossy disc with gentle radial tint ----------
-  const groundGeo = new THREE.CircleGeometry(16, 64);
-  const gPos = groundGeo.getAttribute("position");
-  const gCol: number[] = [];
-  const inner = new THREE.Color(0x2c7a5c);
-  const outer = new THREE.Color(0x173a5e);
-  for (let i = 0; i < gPos.count; i++) {
-    const r = Math.hypot(gPos.getX(i), gPos.getY(i)) / 16;
-    const c = inner.clone().lerp(outer, r * r);
-    gCol.push(c.r, c.g, c.b);
-  }
-  groundGeo.setAttribute("color", new THREE.Float32BufferAttribute(gCol, 3));
+  // ---------- Ground: real grass PBR (Poly Haven leafy_grass, CC0) ----------
   const ground = new THREE.Mesh(
-    groundGeo,
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 }),
+    new THREE.CircleGeometry(16, 64),
+    new THREE.MeshStandardMaterial({
+      map: loadTex("assets/textures/leafy_grass_diff_1k.jpg", 9, true),
+      normalMap: loadTex("assets/textures/leafy_grass_nor_gl_1k.jpg", 9),
+      roughnessMap: loadTex("assets/textures/leafy_grass_rough_1k.jpg", 9),
+      roughness: 1,
+      metalness: 0,
+      color: 0xa8c8a0, // dusk-cool the daylight-scanned grass
+    }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   group.add(ground);
 
-  // ---------- Crystal pond ----------
-  const pond = new THREE.Mesh(
+  // ---------- Pond: real pebble bed + rippling water surface ----------
+  const pondBed = new THREE.Mesh(
     new THREE.CircleGeometry(3.4, 48),
-    new THREE.MeshPhysicalMaterial({
-      color: 0x2fd8e8,
-      roughness: 0.05,
-      metalness: 0.1,
-      transmission: 0.55,
-      thickness: 0.6,
-      emissive: 0x0a5c72,
-      emissiveIntensity: 0.5,
+    new THREE.MeshStandardMaterial({
+      map: loadTex("assets/textures/ganges_river_pebbles_diff_1k.jpg", 3, true),
+      normalMap: loadTex("assets/textures/ganges_river_pebbles_nor_gl_1k.jpg", 3),
+      roughnessMap: loadTex("assets/textures/ganges_river_pebbles_rough_1k.jpg", 3),
+      color: 0x8fb8c8,
+      roughness: 1,
     }),
   );
-  pond.rotation.x = -Math.PI / 2;
-  pond.position.set(-6.5, 0.02, 2.5);
-  group.add(pond);
+  pondBed.rotation.x = -Math.PI / 2;
+  pondBed.position.set(-6.5, 0.015, 2.5);
+  group.add(pondBed);
+  const waterNormals = loadTex("assets/textures/waternormals.jpg", 4);
+  const water = new THREE.Mesh(
+    new THREE.CircleGeometry(3.4, 48),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x2a9ec8,
+      roughness: 0.05,
+      metalness: 0,
+      transmission: 0.75,
+      thickness: 0.4,
+      transparent: true,
+      opacity: 0.9,
+      normalMap: waterNormals,
+      normalScale: new THREE.Vector2(0.35, 0.35),
+    }),
+  );
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(-6.5, 0.12, 2.5);
+  group.add(water);
 
   // ---------- Greenhouse shell: turquoise glass ribs + panels ----------
   const shell = new THREE.Group();
@@ -437,10 +456,11 @@ export function createGarden(models: ModelLibrary): Garden {
   group.add(flies);
 
   // ---------- Lights ----------
-  const hemi = new THREE.HemisphereLight(0xbfe8ff, 0x3a2a6e, 0.7);
+  // Sunset-hour light: warm low sun, violet sky bounce (matches the HDRI dusk)
+  const hemi = new THREE.HemisphereLight(0xd8b8e0, 0x2a2048, 0.55);
   group.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffd9a8, 2.2);
-  sun.position.set(8, 14, 6);
+  const sun = new THREE.DirectionalLight(0xff9a58, 1.7);
+  sun.position.set(14, 5.5, 9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -12;
@@ -473,6 +493,13 @@ export function createGarden(models: ModelLibrary): Garden {
     emissive: 0x241838,
     emissiveIntensity: 0.15,
   });
+  const stoneMat = new THREE.MeshStandardMaterial({
+    map: loadTex("assets/textures/cobblestone_floor_08_diff_1k.jpg", 2, true),
+    normalMap: loadTex("assets/textures/cobblestone_floor_08_nor_gl_1k.jpg", 2),
+    roughnessMap: loadTex("assets/textures/cobblestone_floor_08_rough_1k.jpg", 2),
+    color: 0x9a94b8,
+    roughness: 1,
+  });
   const goldMat = new THREE.MeshStandardMaterial({
     color: 0xffc23a,
     roughness: 0.22,
@@ -480,7 +507,7 @@ export function createGarden(models: ModelLibrary): Garden {
     emissive: 0x7a4d00,
     emissiveIntensity: 0.5,
   });
-  const basePlinth = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3, 0.5, 24), baseMat);
+  const basePlinth = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3, 0.5, 24), stoneMat);
   basePlinth.position.y = 0.25;
   basePlinth.castShadow = true;
   basePlinth.receiveShadow = true;
@@ -568,7 +595,7 @@ export function createGarden(models: ModelLibrary): Garden {
 
   function update(dt: number, t: number, energy: number): void {
     const spinBoost = finaleT >= 0 ? 4 : 1 + energy * 1.5;
-    spinner.rotation.y += dt * 0.35 * spinBoost;
+    spinner.rotation.y -= dt * 0.35 * spinBoost;
     for (const child of spinner.children) {
       if (child.userData.baseY !== undefined) {
         child.position.y =
@@ -590,6 +617,9 @@ export function createGarden(models: ModelLibrary): Garden {
         carouselLight.intensity = 10;
       }
     }
+
+    // Water ripple scroll
+    waterNormals.offset.set(t * 0.015, t * 0.011);
 
     // Firefly drift
     const fp = flies.geometry.getAttribute("position") as THREE.BufferAttribute;
