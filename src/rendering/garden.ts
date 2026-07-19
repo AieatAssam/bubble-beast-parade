@@ -91,13 +91,13 @@ export function createGarden(): Garden {
     emissiveIntensity: 0.35,
   });
   const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(15.5, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2.15),
+    new THREE.SphereGeometry(19, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2.15),
     glassMat,
   );
   dome.position.y = 0.1;
   shell.add(dome);
   // Ribs: vertical arcs
-  const ribGeo = new THREE.TorusGeometry(15.5, 0.09, 6, 48, Math.PI / 1.08);
+  const ribGeo = new THREE.TorusGeometry(19, 0.09, 6, 48, Math.PI / 1.08);
   for (let i = 0; i < 8; i++) {
     const rib = new THREE.Mesh(ribGeo, ribMat);
     rib.rotation.z = Math.PI / 2 + (Math.PI / 1.08 - Math.PI) / -2;
@@ -107,9 +107,9 @@ export function createGarden(): Garden {
   }
   // Horizontal ring ribs
   for (const [ry, rr] of [
-    [4.5, 14.8],
-    [8.5, 12.9],
-    [11.8, 9.9],
+    [5.5, 18.1],
+    [10.5, 15.7],
+    [14.5, 12.1],
   ] as const) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.07, 6, 64), ribMat);
     ring.rotation.x = Math.PI / 2;
@@ -127,7 +127,7 @@ export function createGarden(): Garden {
       roughness: 0.25,
     }),
   );
-  finial.position.y = 14.6;
+  finial.position.y = 17.9;
   shell.add(finial);
   group.add(shell);
 
@@ -347,8 +347,8 @@ export function createGarden(): Garden {
   const carousel = new THREE.Group();
   carousel.position.set(0, 0, -3.5);
   const baseMat = new THREE.MeshStandardMaterial({
-    color: 0xf3e6ff,
-    roughness: 0.3,
+    color: 0xd8c8f0,
+    roughness: 0.4,
     metalness: 0.35,
     emissive: 0x30204e,
     emissiveIntensity: 0.3,
@@ -411,13 +411,13 @@ export function createGarden(): Garden {
     new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffe08a,
-      emissiveIntensity: 2.5,
+      emissiveIntensity: 1.1,
       roughness: 0.1,
     }),
   );
   orb.position.y = 4.3;
   carousel.add(orb);
-  const carouselLight = new THREE.PointLight(0xffe08a, 26, 14);
+  const carouselLight = new THREE.PointLight(0xffe08a, 10, 12);
   carouselLight.position.y = 4.3;
   carousel.add(carouselLight);
   group.add(carousel);
@@ -436,18 +436,18 @@ export function createGarden(): Garden {
       }
     }
     orb.rotation.y += dt;
-    const orbPulse = 2.5 + Math.sin(t * 3) * 0.6 + energy * 2;
+    const orbPulse = 1.1 + Math.sin(t * 3) * 0.3 + energy * 0.8;
     (orb.material as THREE.MeshStandardMaterial).emissiveIntensity = orbPulse;
 
     if (finaleT >= 0) {
       finaleT += dt;
       const k = Math.min(finaleT / 1.2, 1);
       carousel.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.18);
-      carouselLight.intensity = 26 + Math.sin(finaleT * 10) * 20 + 40 * (1 - k);
+      carouselLight.intensity = 10 + Math.sin(finaleT * 10) * 8 + 18 * (1 - k);
       if (finaleT > 4) {
         finaleT = -1;
         carousel.scale.setScalar(1);
-        carouselLight.intensity = 26;
+        carouselLight.intensity = 10;
       }
     }
 

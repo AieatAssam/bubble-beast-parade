@@ -5,7 +5,7 @@ export function injectStyles(): void {
   .screen {
     position: absolute; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 18px;
-    background: radial-gradient(ellipse at 50% 30%, rgba(28,20,80,.88), rgba(8,6,32,.94));
+    background: radial-gradient(ellipse at 50% 30%, rgba(24,16,70,.93), rgba(6,4,26,.97));
     pointer-events: auto; opacity: 0; transition: opacity .35s ease; z-index: 20;
     overflow-y: auto; padding: 24px; box-sizing: border-box;
   }

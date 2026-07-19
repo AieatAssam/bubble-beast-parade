@@ -207,6 +207,9 @@ async function boot(): Promise<void> {
   applySettings();
   void newCaptureDefs;
 
+  // Local debug handle for playtesting (private prototype, no secrets)
+  (window as unknown as Record<string, unknown>).__bbp = { game, pool };
+
   // ---------------- Main loop ----------------
   const clock = new THREE.Clock();
   let t = 0;
