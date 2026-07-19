@@ -110,7 +110,15 @@ export async function applyEnvironment(ctx: RenderContext, manifest: AssetManife
     const tex = await new RGBELoader().loadAsync(path);
     tex.mapping = THREE.EquirectangularReflectionMapping;
     ctx.scene.environment = pmrem.fromEquirectangular(tex).texture;
-    tex.dispose();
+    // Real sky: the HDRI itself as background (kept, not disposed)
+    ctx.scene.background = tex;
+    ctx.scene.backgroundBlurriness = 0.09;
+    ctx.scene.backgroundIntensity = 0.38; // dusk: keep the sky readable but let the garden glow lead
+    ctx.scene.environmentIntensity = 0.5; // stop bright-sky IBL from washing out pale materials
+    if (ctx.scene.fog instanceof THREE.FogExp2) {
+      ctx.scene.fog.color.setHex(0x4a3560); // warm sunset haze to match the HDRI horizon
+      ctx.scene.fog.density = 0.016;
+    }
     pmrem.dispose();
     return true;
   } catch {

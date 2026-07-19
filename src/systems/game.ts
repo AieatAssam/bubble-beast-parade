@@ -337,7 +337,31 @@ export class Game {
     sound.pop(pan, chained ? this.chain - 1 : 0, big);
     this.fx.shockwave(b.pos, b.color, this.camera, big);
     this.fx.burst(b.pos, b.color, big);
+    this.fx.shellShards(b.pos, b.color, b.radius, big);
     this.fx.scorePopup(screen.x, screen.y, `+${score}`, b.color, big);
+
+    // Physical blast: Rapier impulse shoves nearby bubbles away from the pop
+    const blastR = big ? 5 : 3.2;
+    const blastK = big ? 2.6 : 1.4;
+    for (const other of this.pool.active) {
+      if (other === b || other.state !== "idle" || !other.body) continue;
+      const d = other.pos.distanceTo(b.pos);
+      if (d > blastR || d < 1e-3) continue;
+      const falloff = (1 - d / blastR) ** 2;
+      const imp = blastK * falloff * other.body.mass();
+      other.body.applyImpulse(
+        {
+          x: ((other.pos.x - b.pos.x) / d) * imp,
+          y: ((other.pos.y - b.pos.y) / d) * imp,
+          z: ((other.pos.z - b.pos.z) / d) * imp * 0.4, // keep them near the play plane
+        },
+        true,
+      );
+      other.body.applyTorqueImpulse(
+        { x: (Math.random() - 0.5) * imp * 0.3, y: (Math.random() - 0.5) * imp * 0.3, z: 0 },
+        true,
+      );
+    }
 
     // Squash-then-burst on the shell before despawn
     b.state = "popping";

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { createRenderContext, applyEnvironment, loadManifest } from "./rendering/context";
 import { createGarden } from "./rendering/garden";
+import { loadModels } from "./assets/models";
 import { createPhysicsWorld } from "./systems/physics";
 import { BubblePool } from "./entities/bubble";
 import { PopFX } from "./systems/popfx";
@@ -46,11 +47,16 @@ async function boot(): Promise<void> {
   const envOk = await applyEnvironment(ctx, manifest);
   if (!envOk) console.warn("[bbp] HDRI failed to load — using procedural environment");
 
-  setProgress(50, "Planting the jewel garden…");
-  const garden = createGarden();
+  setProgress(45, "Growing real trees…");
+  const models = await loadModels((done, total) =>
+    setProgress(45 + Math.round((done / total) * 20), `Growing real trees… ${done}/${total}`),
+  );
+
+  setProgress(66, "Planting the jewel garden…");
+  const garden = createGarden(models);
   ctx.scene.add(garden.group);
 
-  setProgress(65, "Waking the physics fairies…");
+  setProgress(74, "Waking the physics fairies…");
   const physics = await createPhysicsWorld();
 
   setProgress(80, "Blowing the first bubbles…");
@@ -213,6 +219,7 @@ async function boot(): Promise<void> {
 
   // ---------------- Main loop ----------------
   const clock = new THREE.Clock();
+  const camBase = ctx.camera.position.clone();
   let t = 0;
   function frame(): void {
     const dt = Math.min(clock.getDelta(), 0.05);
@@ -227,6 +234,14 @@ async function boot(): Promise<void> {
       fx.update(dt);
       garden.update(dt, t, game.intensity);
       hud.update(game);
+
+      // Pop-driven camera shake (suppressed under reduced motion)
+      const shake = game.reducedMotion ? 0 : fx.shakeEnergy;
+      ctx.camera.position.set(
+        camBase.x + (Math.random() - 0.5) * 0.06 * shake,
+        camBase.y + (Math.random() - 0.5) * 0.06 * shake,
+        camBase.z + (Math.random() - 0.5) * 0.03 * shake,
+      );
     }
 
     ctx.render();

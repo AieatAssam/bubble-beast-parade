@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { COLOR_DEFS, COLOR_FAMILIES } from "../data/colors";
+import { cloneModel, type ModelLibrary } from "../assets/models";
 
 /**
  * Procedural magical conservatory diorama: glass greenhouse shell, ground,
@@ -29,9 +30,52 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-export function createGarden(): Garden {
+export function createGarden(models: ModelLibrary): Garden {
   const group = new THREE.Group();
   const rng = seededRandom(20260719);
+  /** Animated real-model registry: gentle sway/swing/bob per archetype. */
+  const swayers: { obj: THREE.Object3D; kind: "tree" | "lantern" | "flower" | "horse"; phase: number }[] = [];
+
+  const place = (
+    name: Parameters<typeof cloneModel>[1],
+    x: number,
+    z: number,
+    ry: number,
+    scale = 1,
+    anim?: "tree" | "lantern" | "flower",
+  ): THREE.Group | null => {
+    const m = cloneModel(models, name);
+    if (!m) return null;
+    m.position.set(x, 0, z);
+    m.rotation.y = ry;
+    m.scale.multiplyScalar(scale);
+    group.add(m);
+    if (anim) swayers.push({ obj: m, kind: anim, phase: rng() * Math.PI * 2 });
+    return m;
+  };
+
+  // ---------- Real photoscanned flora (Poly Haven CC0) ----------
+  const hasTrees = Boolean(models.get("jacaranda_tree"));
+  place("jacaranda_tree", -12.5, -5, 0.4, 1, "tree");
+  place("jacaranda_tree", 12.8, -6.5, 2.4, 0.85, "tree");
+  place("island_tree_02", -11.8, 3.2, 1.2, 1, "tree");
+  place("island_tree_02", 11, 4.6, -0.6, 0.8, "tree");
+  for (let i = 0; i < 10; i++) {
+    const a = rng() * Math.PI * 2;
+    const r = 4.2 + rng() * 9;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (Math.hypot(x + 6.5, z - 2.5) < 3.8) continue; // keep the pond clear
+    const pick = (["fern_02", "flower_gazania", "flower_empodium", "crystalline_iceplant"] as const)[
+      i % 4
+    ]!;
+    place(pick, x, z, rng() * Math.PI * 2, 0.8 + rng() * 0.6, "flower");
+  }
+  place("coast_rocks_05", -4.2, 5.2, 0.7, 1);
+  place("coast_rocks_05", 8.6, 5.6, 2.1, 0.7);
+  place("coast_rocks_05", -8.9, -1.5, 3.6, 0.85);
+  place("gothic_statue", 6.8, 1.6, -0.5, 1);
+  place("garden_gnome", -4.6, 4.3, 2.6, 1);
 
   // ---------- Ground: soft mossy disc with gentle radial tint ----------
   const groundGeo = new THREE.CircleGeometry(16, 64);
@@ -268,20 +312,42 @@ export function createGarden(): Garden {
     },
   );
 
-  // Lanterns: floating emissive boxes
-  scatterInstanced(
-    new THREE.BoxGeometry(0.28, 0.4, 0.28),
-    new THREE.MeshStandardMaterial({ emissiveIntensity: 2.2, roughness: 0.4, metalness: 0.3 }),
-    26,
-    () => {
-      const b = ringPlace(4.5, 13)();
-      b.p.y = 2.2 + rng() * 3.5;
-      b.s = 0.8 + rng() * 0.5;
-      return b;
-    },
-    () => new THREE.Color(rng() > 0.5 ? 0xffc23a : 0xff8c3a),
-    0.25,
-  );
+  // Lanterns: real Poly Haven lantern model when present, emissive boxes otherwise
+  if (models.get("Lantern_01")) {
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + rng() * 0.4;
+      const r = 5.5 + rng() * 7;
+      const m = place("Lantern_01", Math.cos(a) * r, Math.sin(a) * r, rng() * Math.PI * 2, 0.9, "lantern");
+      if (m) {
+        m.position.y = 2 + rng() * 3.2;
+        // Warm glow core inside each hanging lantern
+        const glow = new THREE.Mesh(
+          new THREE.SphereGeometry(0.09, 8, 6),
+          new THREE.MeshStandardMaterial({
+            color: 0xffc23a,
+            emissive: rng() > 0.5 ? 0xffc23a : 0xff8c3a,
+            emissiveIntensity: 3,
+          }),
+        );
+        glow.position.y = 0.35;
+        m.add(glow);
+      }
+    }
+  } else {
+    scatterInstanced(
+      new THREE.BoxGeometry(0.28, 0.4, 0.28),
+      new THREE.MeshStandardMaterial({ emissiveIntensity: 2.2, roughness: 0.4, metalness: 0.3 }),
+      26,
+      () => {
+        const b = ringPlace(4.5, 13)();
+        b.p.y = 2.2 + rng() * 3.5;
+        b.s = 0.8 + rng() * 0.5;
+        return b;
+      },
+      () => new THREE.Color(rng() > 0.5 ? 0xffc23a : 0xff8c3a),
+      0.25,
+    );
+  }
 
   // ---------- Fireflies + glitter: points ----------
   const flyCount = 220;
@@ -347,11 +413,11 @@ export function createGarden(): Garden {
   const carousel = new THREE.Group();
   carousel.position.set(0, 0, -3.5);
   const baseMat = new THREE.MeshStandardMaterial({
-    color: 0xd8c8f0,
-    roughness: 0.4,
-    metalness: 0.35,
-    emissive: 0x30204e,
-    emissiveIntensity: 0.3,
+    color: 0xb8a8d8,
+    roughness: 0.55,
+    metalness: 0.25,
+    emissive: 0x241838,
+    emissiveIntensity: 0.15,
   });
   const goldMat = new THREE.MeshStandardMaterial({
     color: 0xffc23a,
@@ -371,7 +437,8 @@ export function createGarden(): Garden {
   const spinner = new THREE.Group();
   spinner.position.y = 0.75;
   carousel.add(spinner);
-  // Carousel animals: colourful low-detail mounts on poles
+  // Carousel mounts: real horse statues when the model loaded, spheres otherwise
+  const hasHorse = Boolean(models.get("horse_statue_01"));
   const mountGeo = new THREE.SphereGeometry(0.32, 12, 10);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
@@ -379,25 +446,44 @@ export function createGarden(): Garden {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 8), goldMat);
     pole.position.set(Math.cos(a) * 1.7, 1.1, Math.sin(a) * 1.7);
     spinner.add(pole);
-    const mount = new THREE.Mesh(
-      mountGeo,
-      new THREE.MeshStandardMaterial({
-        color: COLOR_DEFS[fam].hex,
-        emissive: COLOR_DEFS[fam].emissive,
-        emissiveIntensity: 0.45,
-        roughness: 0.3,
-        metalness: 0.2,
-      }),
-    );
-    mount.position.set(Math.cos(a) * 1.7, 1.1, Math.sin(a) * 1.7);
-    mount.scale.set(1, 0.8, 1.4);
-    mount.userData.baseY = 1.1;
+    let mount: THREE.Object3D;
+    if (hasHorse) {
+      const horse = cloneModel(models, "horse_statue_01")!;
+      horse.rotation.y = -a + Math.PI / 2; // face direction of travel
+      // Jewel-tone tint so each mount matches a colour family
+      horse.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) {
+          const mat = o.material.clone();
+          mat.color.lerp(new THREE.Color(COLOR_DEFS[fam].hex), 0.35);
+          mat.emissive = new THREE.Color(COLOR_DEFS[fam].emissive);
+          mat.emissiveIntensity = 0.12;
+          o.material = mat;
+        }
+      });
+      mount = horse;
+      mount.position.set(Math.cos(a) * 1.7, 0.55, Math.sin(a) * 1.7);
+      mount.userData.baseY = 0.55;
+    } else {
+      const sphere = new THREE.Mesh(
+        mountGeo,
+        new THREE.MeshStandardMaterial({
+          color: COLOR_DEFS[fam].hex,
+          emissive: COLOR_DEFS[fam].emissive,
+          emissiveIntensity: 0.45,
+          roughness: 0.3,
+          metalness: 0.2,
+        }),
+      );
+      sphere.scale.set(1, 0.8, 1.4);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), sphere.material);
+      head.position.set(0, 0.28, 0.5);
+      sphere.add(head);
+      mount = sphere;
+      mount.position.set(Math.cos(a) * 1.7, 1.1, Math.sin(a) * 1.7);
+      mount.userData.baseY = 1.1;
+    }
     mount.userData.phase = i;
     spinner.add(mount);
-    // little head
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), mount.material);
-    head.position.set(0, 0.28, 0.5);
-    mount.add(head);
   }
   const canopy = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.3, 12), baseMat);
   canopy.position.y = 3.3;
@@ -417,7 +503,7 @@ export function createGarden(): Garden {
   );
   orb.position.y = 4.3;
   carousel.add(orb);
-  const carouselLight = new THREE.PointLight(0xffe08a, 10, 12);
+  const carouselLight = new THREE.PointLight(0xffe08a, 6, 10);
   carouselLight.position.y = 4.3;
   carousel.add(carouselLight);
   group.add(carousel);
@@ -464,6 +550,26 @@ export function createGarden(): Garden {
     for (const d of decorations) {
       if (d.sway > 0) d.mesh.rotation.y = Math.sin(t * 0.4) * 0.02 * d.sway;
     }
+
+    // Real-model animations: trees breathe, lanterns swing, flowers shiver, horses gallop
+    for (const s of swayers) {
+      switch (s.kind) {
+        case "tree":
+          s.obj.rotation.z = Math.sin(t * 0.45 + s.phase) * 0.012;
+          s.obj.rotation.x = Math.cos(t * 0.32 + s.phase) * 0.008;
+          break;
+        case "lantern":
+          s.obj.rotation.z = Math.sin(t * 1.1 + s.phase) * 0.14;
+          s.obj.rotation.x = Math.cos(t * 0.9 + s.phase) * 0.1;
+          break;
+        case "flower":
+          s.obj.rotation.z = Math.sin(t * 1.6 + s.phase) * 0.03;
+          break;
+        case "horse":
+          break;
+      }
+    }
+    void hasTrees;
 
     // Accent light gentle pulse
     accentA.intensity = 30 + Math.sin(t * 1.3) * 8;

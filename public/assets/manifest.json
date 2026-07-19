@@ -7,10 +7,83 @@
       "source": "https://polyhaven.com/a/rosendal_park_sunset"
     }
   },
-  "models": {},
+  "models": {
+    "jacaranda_tree": {
+      "path": "assets/models/jacaranda_tree.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/jacaranda_tree",
+      "optional": true
+    },
+    "island_tree_02": {
+      "path": "assets/models/island_tree_02.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/island_tree_02",
+      "optional": true
+    },
+    "fern_02": {
+      "path": "assets/models/fern_02.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/fern_02",
+      "optional": true
+    },
+    "flower_gazania": {
+      "path": "assets/models/flower_gazania.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/flower_gazania",
+      "optional": true
+    },
+    "flower_empodium": {
+      "path": "assets/models/flower_empodium.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/flower_empodium",
+      "optional": true
+    },
+    "crystalline_iceplant": {
+      "path": "assets/models/crystalline_iceplant.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/crystalline_iceplant",
+      "optional": true
+    },
+    "coast_rocks_05": {
+      "path": "assets/models/coast_rocks_05.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/coast_rocks_05",
+      "optional": true
+    },
+    "Lantern_01": {
+      "path": "assets/models/Lantern_01.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/Lantern_01",
+      "optional": true
+    },
+    "horse_statue_01": {
+      "path": "assets/models/horse_statue_01.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/horse_statue_01",
+      "optional": true
+    },
+    "gothic_statue": {
+      "path": "assets/models/gothic_statue.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/gothic_statue",
+      "optional": true
+    },
+    "garden_gnome": {
+      "path": "assets/models/garden_gnome.glb",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/garden_gnome",
+      "optional": true
+    }
+  },
   "sfx": {
-    "pop": { "path": "assets/sfx/pop.ogg", "optional": true },
-    "thunk": { "path": "assets/sfx/thunk.ogg", "optional": true }
+    "pop": {
+      "path": "assets/sfx/pop.ogg",
+      "optional": true
+    },
+    "thunk": {
+      "path": "assets/sfx/thunk.ogg",
+      "optional": true
+    }
   },
   "notes": "Missing or failed entries always fall back to procedural geometry / synthesised WebAudio. The game must remain fully playable with an empty assets directory."
 }

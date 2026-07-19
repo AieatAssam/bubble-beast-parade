@@ -12,6 +12,29 @@ One entry per external asset used by Bubble Beast Parade.
 - **Modified:** No (used as-is, 1K resolution download)
 - **Use:** Image-based environment lighting and reflections for the conservatory scene.
 
+## 3D Models (all Poly Haven, CC0, 1k-texture glTF)
+
+All models below were downloaded from Poly Haven, converted to meshopt-compressed
+GLB with WebP textures via `@gltf-transform/cli`, and mesh-simplified for
+real-time use (**Modified: Yes** — decimation + compression only, no authorship
+changes). Files live in `public/assets/models/`.
+
+| Asset | Source | Use in game |
+|---|---|---|
+| Jacaranda Tree | https://polyhaven.com/a/jacaranda_tree | Large flowering garden trees |
+| Island Tree 02 | https://polyhaven.com/a/island_tree_02 | Mid-size garden trees |
+| Fern 02 | https://polyhaven.com/a/fern_02 | Ground flora |
+| Flower Gazania | https://polyhaven.com/a/flower_gazania | Ground flora |
+| Flower Empodium | https://polyhaven.com/a/flower_empodium | Ground flora |
+| Crystalline Iceplant | https://polyhaven.com/a/crystalline_iceplant | Ground flora |
+| Coast Rocks 05 | https://polyhaven.com/a/coast_rocks_05 | Rock formations |
+| Lantern 01 | https://polyhaven.com/a/Lantern_01 | Hanging garden lanterns |
+| Horse Statue 01 | https://polyhaven.com/a/horse_statue_01 | Carousel mounts |
+| Gothic Statue | https://polyhaven.com/a/gothic_statue | Garden centrepiece statue |
+| Garden Gnome | https://polyhaven.com/a/garden_gnome | Pond-side decoration |
+
+Poly Haven assets are CC0 (public domain): https://polyhaven.com/license
+
 ## Everything else
 
 All creatures, garden decorations, the greenhouse, the carousel centrepiece,

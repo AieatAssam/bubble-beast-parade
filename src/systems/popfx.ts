@@ -10,6 +10,8 @@ const RING_POOL = 12;
 const BURST_POOL = 10;
 const BURST_PARTICLES = 42;
 const POPUP_POOL = 14;
+const SHARD_POOL = 8;
+const SHARDS_PER_POP = 12;
 
 interface Ring {
   mesh: THREE.Mesh;
@@ -33,14 +35,25 @@ interface Popup {
   y: number;
 }
 
+interface ShardSet {
+  mesh: THREE.InstancedMesh;
+  vel: Float32Array;
+  rot: Float32Array;
+  age: number;
+  active: boolean;
+}
+
 export class PopFX {
   private rings: Ring[] = [];
   private bursts: Burst[] = [];
   private popups: Popup[] = [];
+  private shards: ShardSet[] = [];
   private scene: THREE.Scene;
   private hud: HTMLElement;
   reducedMotion = false;
   reducedFlash = false;
+  /** Decaying camera-shake energy, consumed by the main loop. */
+  shakeEnergy = 0;
 
   constructor(scene: THREE.Scene, hudLayer: HTMLElement) {
     this.scene = scene;
@@ -73,6 +86,34 @@ export class PopFX {
       points.visible = false;
       this.scene.add(points);
       this.bursts.push({ points, vel: new Float32Array(BURST_PARTICLES * 3), age: 0, active: false });
+    }
+    // Shell shard debris: instanced curved triangles, physics-lite (gravity + spin + drag)
+    const shardGeo = new THREE.TetrahedronGeometry(0.09, 0);
+    for (let i = 0; i < SHARD_POOL; i++) {
+      const mesh = new THREE.InstancedMesh(
+        shardGeo,
+        new THREE.MeshPhysicalMaterial({
+          roughness: 0.05,
+          metalness: 0.1,
+          transmission: 0.5,
+          thickness: 0.1,
+          transparent: true,
+          opacity: 0.9,
+          iridescence: 1,
+          side: THREE.DoubleSide,
+        }),
+        SHARDS_PER_POP,
+      );
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      this.scene.add(mesh);
+      this.shards.push({
+        mesh,
+        vel: new Float32Array(SHARDS_PER_POP * 3),
+        rot: new Float32Array(SHARDS_PER_POP * 4), // axis xyz + speed
+        age: 0,
+        active: false,
+      });
     }
     for (let i = 0; i < POPUP_POOL; i++) {
       const el = document.createElement("div");
@@ -130,6 +171,45 @@ export class PopFX {
     (b.points.material as THREE.PointsMaterial).opacity = 1;
   }
 
+  /** Glass-shell shards flung from the burst point; adds physical weight to the pop. */
+  shellShards(pos: THREE.Vector3, color: ColorFamily, radius: number, big = false): void {
+    const s = this.shards.find((x) => !x.active);
+    if (!s) return;
+    s.active = true;
+    s.age = 0;
+    s.mesh.visible = true;
+    const mat = s.mesh.material as THREE.MeshPhysicalMaterial;
+    mat.color.setHex(COLOR_DEFS[color].emissive);
+    mat.opacity = 0.9;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const speed = big ? 6.5 : 4.2;
+    for (let i = 0; i < SHARDS_PER_POP; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const dir = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta),
+      );
+      // Shards start on the shell surface, flying outward
+      const start = pos.clone().addScaledVector(dir, radius * 0.8);
+      const v = speed * (0.5 + Math.random() * 0.5);
+      s.vel[i * 3] = dir.x * v;
+      s.vel[i * 3 + 1] = dir.y * v + 1.2;
+      s.vel[i * 3 + 2] = dir.z * v;
+      s.rot[i * 4] = Math.random() - 0.5;
+      s.rot[i * 4 + 1] = Math.random() - 0.5;
+      s.rot[i * 4 + 2] = Math.random() - 0.5;
+      s.rot[i * 4 + 3] = 6 + Math.random() * 14; // spin speed rad/s
+      q.setFromAxisAngle(dir, Math.random() * Math.PI * 2);
+      m.compose(start, q, new THREE.Vector3(1, 1, 1).multiplyScalar(0.7 + Math.random() * 0.8));
+      s.mesh.setMatrixAt(i, m);
+    }
+    s.mesh.instanceMatrix.needsUpdate = true;
+    this.shakeEnergy = Math.min(this.shakeEnergy + (big ? 0.6 : 0.22), 1);
+  }
+
   /** Floating score number at screen position. */
   scorePopup(screenX: number, screenY: number, text: string, color: ColorFamily, big = false): void {
     const p = this.popups.find((x) => !x.active);
@@ -148,6 +228,42 @@ export class PopFX {
 
   update(dt: number): void {
     const motion = this.reducedMotion ? 0.6 : 1;
+    this.shakeEnergy = Math.max(0, this.shakeEnergy - dt * 2.2);
+
+    const tmpM = new THREE.Matrix4();
+    const tmpP = new THREE.Vector3();
+    const tmpQ = new THREE.Quaternion();
+    const tmpS = new THREE.Vector3();
+    const spinQ = new THREE.Quaternion();
+    const axis = new THREE.Vector3();
+    for (const s of this.shards) {
+      if (!s.active) continue;
+      s.age += dt;
+      const life = 0.85;
+      if (s.age >= life) {
+        s.active = false;
+        s.mesh.visible = false;
+        continue;
+      }
+      for (let i = 0; i < SHARDS_PER_POP; i++) {
+        s.mesh.getMatrixAt(i, tmpM);
+        tmpM.decompose(tmpP, tmpQ, tmpS);
+        tmpP.x += s.vel[i * 3]! * dt * motion;
+        tmpP.y += s.vel[i * 3 + 1]! * dt * motion;
+        tmpP.z += s.vel[i * 3 + 2]! * dt * motion;
+        s.vel[i * 3 + 1]! -= dt * 6.5; // shard gravity — heavier than glitter
+        s.vel[i * 3]! *= 1 - dt * 1.2; // air drag
+        s.vel[i * 3 + 2]! *= 1 - dt * 1.2;
+        axis.set(s.rot[i * 4]!, s.rot[i * 4 + 1]!, s.rot[i * 4 + 2]!).normalize();
+        spinQ.setFromAxisAngle(axis, s.rot[i * 4 + 3]! * dt * motion);
+        tmpQ.multiply(spinQ);
+        const shrink = 1 - (s.age / life) * 0.5;
+        tmpM.compose(tmpP, tmpQ, tmpS.setScalar(Math.max(0.01, tmpS.x * (shrink > 0.5 ? 1 : 0.97))));
+        s.mesh.setMatrixAt(i, tmpM);
+      }
+      s.mesh.instanceMatrix.needsUpdate = true;
+      (s.mesh.material as THREE.MeshPhysicalMaterial).opacity = 0.9 * (1 - s.age / life);
+    }
     for (const r of this.rings) {
       if (!r.active) continue;
       r.age += dt;

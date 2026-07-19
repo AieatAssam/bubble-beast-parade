@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { CREATURES, RARITY_LABEL, type CreatureDef } from "../data/creatures";
-import { BUBBLE_TYPES } from "../data/bubbleTypes";
+import { BUBBLE_TYPES, CHARGE_REGEN_SECONDS } from "../data/bubbleTypes";
 import { PRISM_OUTCOMES } from "../data/prism";
 import { COLOR_DEFS } from "../data/colors";
 import { buildCreatureMesh, animateCreature } from "../rendering/creatureMesh";
@@ -120,7 +120,7 @@ export class Screens {
     help.className = "help-block";
     help.innerHTML =
       `<b>Controls:</b> move the wand with your mouse or finger; click / tap to pop the highlighted bubble. ` +
-      `Each pop costs a wand crystal; crystals refill every 1.2s. Golden &amp; Grand pops refund a crystal — ` +
+      `Each pop costs a wand crystal; crystals refill every ${CHARGE_REGEN_SECONDS}s. Golden &amp; Grand pops refund a crystal — ` +
       `and so do perfectly-timed chain pops.<br><br><b>Bubble types:</b><br>` +
       Object.values(BUBBLE_TYPES)
         .map((d) => `• <b>${d.label}</b> — ${d.help}`)

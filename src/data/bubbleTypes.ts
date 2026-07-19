@@ -92,7 +92,7 @@ export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
 /** Charge economy constants (SPEC §5). */
 export const CHARGE_MAX = 3;
 export const CHARGE_OVERCHARGE_MAX = 4;
-export const CHARGE_REGEN_SECONDS = 1.2;
+export const CHARGE_REGEN_SECONDS = 2.0;
 
 /** Round length in seconds. */
 export const ROUND_SECONDS = 90;
