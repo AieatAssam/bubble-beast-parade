@@ -19,7 +19,16 @@ export type ModelName =
   | "horse_statue_01"
   | "gothic_statue"
   | "garden_gnome"
-  | "crystal_cluster";
+  | "crystal_cluster"
+  | "crystal_small"
+  | "flower_a"
+  | "flower_b"
+  | "flower_c"
+  | "flower_d"
+  | "mushroom_a"
+  | "mushroom_b"
+  | "fountain"
+  | "butterfly";
 
 /** Target world height (m) each model is normalised to. */
 const TARGET_HEIGHT: Record<ModelName, number> = {
@@ -35,6 +44,15 @@ const TARGET_HEIGHT: Record<ModelName, number> = {
   gothic_statue: 2.4,
   garden_gnome: 0.85,
   crystal_cluster: 1.3,
+  crystal_small: 0.7,
+  flower_a: 1.1,
+  flower_b: 1.2,
+  flower_c: 1.0,
+  flower_d: 0.9,
+  mushroom_a: 0.9,
+  mushroom_b: 0.75,
+  fountain: 2.4,
+  butterfly: 0.28,
 };
 
 export type ModelLibrary = Map<ModelName, THREE.Group>;
@@ -55,8 +73,9 @@ export async function loadModels(
         // Normalise: sit on y=0, scale to target height
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
-        const scale = TARGET_HEIGHT[name] / Math.max(size.y, 1e-4);
-        root.scale.setScalar(scale);
+        // Normalise by the largest dimension so flat/wide models don't explode
+        const maxDim = Math.max(size.x, size.y, size.z, 1e-4);
+        root.scale.setScalar(TARGET_HEIGHT[name] / maxDim);
         const box2 = new THREE.Box3().setFromObject(root);
         root.position.y -= box2.min.y;
         const wrapper = new THREE.Group();
@@ -65,6 +84,22 @@ export async function loadModels(
           if (o instanceof THREE.Mesh) {
             o.castShadow = false;
             o.receiveShadow = true;
+            // Some packs ship unlit materials that render fullbright and blow
+            // out under bloom — convert them to lit standard materials.
+            const mat = o.material as THREE.Material;
+            if (mat instanceof THREE.MeshBasicMaterial) {
+              const std = new THREE.MeshStandardMaterial({
+                map: mat.map ?? null,
+                color: mat.color,
+                roughness: 0.75,
+                metalness: 0.05,
+                transparent: mat.transparent,
+                opacity: mat.opacity,
+                side: mat.side,
+                alphaTest: mat.alphaTest,
+              });
+              o.material = std;
+            }
           }
         });
         lib.set(name, wrapper);

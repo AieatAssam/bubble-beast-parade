@@ -74,9 +74,6 @@ export function createGarden(models: ModelLibrary): Garden {
   place("coast_rocks_05", -4.2, 5.2, 0.7, 1);
   place("coast_rocks_05", 8.6, 5.6, 2.1, 0.7);
   place("coast_rocks_05", -8.9, -1.5, 3.6, 0.85);
-  place("crystal_cluster", 3.9, 4.9, 0.8, 1);
-  place("crystal_cluster", -9.6, -3.2, 2.3, 1.4);
-  place("crystal_cluster", 9.8, -1.8, 4.1, 0.9);
   place("gothic_statue", 6.8, 1.6, -0.5, 1);
   place("garden_gnome", -4.6, 4.3, 2.6, 1);
 
@@ -228,92 +225,146 @@ export function createGarden(models: ModelLibrary): Garden {
     return new THREE.Color(COLOR_DEFS[f].hex);
   };
 
-  // Giant flowers: cone stem + icosahedron bloom
-  const bloomGeo = new THREE.IcosahedronGeometry(0.42, 1);
-  scatterInstanced(
-    bloomGeo,
-    new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.1, emissiveIntensity: 0.4 }),
-    90,
-    () => {
-      const base = ringPlace(3.4, 13.5)();
-      base.p.y = 0.55 + rng() * 0.9;
-      return base;
-    },
-    familyColor,
-    0.35,
-  );
-  scatterInstanced(
-    new THREE.ConeGeometry(0.07, 1.3, 5),
-    new THREE.MeshStandardMaterial({ color: 0x2e8f4e, roughness: 0.7 }),
-    90,
-    () => {
-      const base = ringPlace(3.4, 13.5)();
-      base.p.y = 0.5;
-      return base;
-    },
-    undefined,
-    0.35,
-  );
+  // Flowers: real Polygonal Mind / Poly Haven models when loaded, primitives otherwise
+  const scatterModels = (
+    names: Parameters<typeof cloneModel>[1][],
+    count: number,
+    rMin: number,
+    rMax: number,
+    sMin: number,
+    sMax: number,
+    anim?: "flower",
+    glow = false,
+  ): boolean => {
+    if (!names.some((n) => models.get(n))) return false;
+    for (let i = 0; i < count; i++) {
+      const spot = ringPlace(rMin, rMax)();
+      const name = names[i % names.length]!;
+      const m = place(name, spot.p.x, spot.p.z, spot.ry, sMin + rng() * (sMax - sMin), anim);
+      if (m && glow) {
+        // Tint pale mushroom caps into the palette so they glow violet, not white
+        const tint = new THREE.Color([0xd88fe0, 0x8fd8e0, 0xe0b88f][i % 3]!);
+        m.traverse((o) => {
+          if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) {
+            const mat = o.material.clone();
+            mat.color.multiply(tint);
+            o.material = mat;
+          }
+        });
+        const picks = [0x35d7e8, 0x9a5bff, 0xff5fa8];
+        const light = new THREE.Mesh(
+          new THREE.SphereGeometry(0.07, 8, 6),
+          new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: picks[Math.floor(rng() * picks.length)]!,
+            emissiveIntensity: 2.4,
+          }),
+        );
+        light.position.y = 0.32;
+        m.add(light);
+      }
+    }
+    return true;
+  };
 
-  // Jewel leaves
-  scatterInstanced(
-    new THREE.OctahedronGeometry(0.3, 0),
-    new THREE.MeshPhysicalMaterial({
-      roughness: 0.15,
-      metalness: 0.2,
-      transmission: 0.5,
-      thickness: 0.4,
-    }),
-    70,
-    () => {
-      const b = ringPlace(4, 14)();
-      b.p.y = 0.25 + rng() * 0.4;
-      return b;
-    },
-    familyColor,
-    0.5,
-  );
+  if (
+    !scatterModels(["flower_a", "flower_b", "flower_c", "flower_d"], 44, 3.4, 13.5, 1.0, 2.0, "flower")
+  ) {
+    const bloomGeo = new THREE.IcosahedronGeometry(0.42, 1);
+    scatterInstanced(
+      bloomGeo,
+      new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.1, emissiveIntensity: 0.4 }),
+      90,
+      () => {
+        const base = ringPlace(3.4, 13.5)();
+        base.p.y = 0.55 + rng() * 0.9;
+        return base;
+      },
+      familyColor,
+      0.35,
+    );
+  }
 
-  // Crystals: tall stretched octahedra clusters
-  scatterInstanced(
-    new THREE.OctahedronGeometry(0.35, 0),
-    new THREE.MeshPhysicalMaterial({
-      roughness: 0.05,
-      metalness: 0.1,
-      transmission: 0.7,
-      thickness: 0.8,
-      emissiveIntensity: 0.8,
-    }),
-    40,
-    () => {
-      const b = ringPlace(5, 13.8)();
-      b.p.y = 0.5;
-      b.s *= 1.6;
-      return b;
-    },
-    (i) => {
-      const c = familyColor();
-      void i;
-      return c;
-    },
-  );
+  // Bushes replace the old jewel-leaf octahedra
+  if (!scatterModels(["fern_02", "flower_gazania", "crystalline_iceplant"], 18, 4.5, 13.5, 1.2, 2.0)) {
+    scatterInstanced(
+      new THREE.OctahedronGeometry(0.3, 0),
+      new THREE.MeshPhysicalMaterial({
+        roughness: 0.15,
+        metalness: 0.2,
+        transmission: 0.5,
+        thickness: 0.4,
+      }),
+      70,
+      () => {
+        const b = ringPlace(4, 14)();
+        b.p.y = 0.25 + rng() * 0.4;
+        return b;
+      },
+      familyColor,
+      0.5,
+    );
+  }
 
-  // Glowing mushrooms
-  scatterInstanced(
-    new THREE.SphereGeometry(0.22, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-    new THREE.MeshStandardMaterial({ emissiveIntensity: 1.6, roughness: 0.5 }),
-    55,
-    () => {
-      const b = ringPlace(3.2, 14.5)();
-      b.p.y = 0.16;
-      return b;
-    },
-    () => {
-      const picks = [0x35d7e8, 0x9a5bff, 0xff5fa8];
-      const c = new THREE.Color(picks[Math.floor(rng() * picks.length)]!);
-      return c;
-    },
-  );
+  // Crystal formations: real crystal model clones
+  if (!scatterModels(["fern_02", "crystalline_iceplant"], 12, 5, 13.8, 1.0, 1.8)) {
+    scatterInstanced(
+      new THREE.OctahedronGeometry(0.35, 0),
+      new THREE.MeshPhysicalMaterial({
+        roughness: 0.05,
+        metalness: 0.1,
+        transmission: 0.7,
+        thickness: 0.8,
+        emissiveIntensity: 0.8,
+      }),
+      40,
+      () => {
+        const b = ringPlace(5, 13.8)();
+        b.p.y = 0.5;
+        b.s *= 1.6;
+        return b;
+      },
+      () => familyColor(),
+    );
+  }
+
+  // Glowing mushrooms: real models with a light core tucked under the cap
+  if (!scatterModels(["mushroom_a", "mushroom_b"], 22, 3.2, 14.5, 0.9, 1.8, undefined, true)) {
+    scatterInstanced(
+      new THREE.SphereGeometry(0.22, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ emissiveIntensity: 1.6, roughness: 0.5 }),
+      55,
+      () => {
+        const b = ringPlace(3.2, 14.5)();
+        b.p.y = 0.16;
+        return b;
+      },
+      () => {
+        const picks = [0x35d7e8, 0x9a5bff, 0xff5fa8];
+        return new THREE.Color(picks[Math.floor(rng() * picks.length)]!);
+      },
+    );
+  }
+
+  // Park fountain beside the crystal pond, tinted to dusk stone
+  const fountain = place("fountain", -6.5, 2.5, 0.6, 1);
+  fountain?.traverse((o) => {
+    if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial) {
+      const m = o.material.clone();
+      m.color.multiply(new THREE.Color(0x7888b0));
+      m.roughness = 0.85;
+      o.material = m;
+    }
+  });
+
+  // Butterflies: slow figure-eight flights above the flowers
+  const butterflies: { obj: THREE.Group; phase: number; r: number; h: number }[] = [];
+  for (let i = 0; i < 4; i++) {
+    const b = cloneModel(models, "butterfly");
+    if (!b) break;
+    group.add(b);
+    butterflies.push({ obj: b, phase: rng() * Math.PI * 2, r: 4.5 + rng() * 6, h: 1.4 + rng() * 2 });
+  }
 
   // Lanterns: real Poly Haven lantern model when present, emissive boxes otherwise
   if (models.get("Lantern_01")) {
@@ -573,6 +624,18 @@ export function createGarden(models: ModelLibrary): Garden {
       }
     }
     void hasTrees;
+
+    // Butterfly flights: lazy tilted circles with wing-beat bob
+    for (const bf of butterflies) {
+      const a = t * 0.35 + bf.phase;
+      bf.obj.position.set(
+        Math.cos(a) * bf.r,
+        bf.h + Math.sin(t * 7 + bf.phase) * 0.12 + Math.sin(a * 2) * 0.4,
+        Math.sin(a * 1.3) * bf.r * 0.7 + 1,
+      );
+      bf.obj.rotation.y = -a + Math.PI / 2;
+      bf.obj.rotation.z = Math.sin(t * 7 + bf.phase) * 0.25;
+    }
 
     // Accent light gentle pulse
     accentA.intensity = 30 + Math.sin(t * 1.3) * 8;

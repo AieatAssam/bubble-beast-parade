@@ -85,6 +85,54 @@
       "license": "CC0",
       "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (Crystal Crossroads / Crystal_Cluster)",
       "optional": true
+    },
+    "flower_a": {
+      "path": "assets/models/flower_a.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (MomusPark/Flower_01_a)",
+      "optional": true
+    },
+    "flower_b": {
+      "path": "assets/models/flower_b.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (MomusPark/Flower_02_a_Art)",
+      "optional": true
+    },
+    "flower_c": {
+      "path": "assets/models/flower_c.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (MomusPark/Flower_03_a)",
+      "optional": true
+    },
+    "flower_d": {
+      "path": "assets/models/flower_d.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (avatar-garden/Flower05)",
+      "optional": true
+    },
+    "mushroom_a": {
+      "path": "assets/models/mushroom_a.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (MomusPark/Mushroom_01_Art)",
+      "optional": true
+    },
+    "mushroom_b": {
+      "path": "assets/models/mushroom_b.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (MomusPark/Mushroom_02_Art)",
+      "optional": true
+    },
+    "fountain": {
+      "path": "assets/models/fountain.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (MomusPark/Str_Fountain_01_Art)",
+      "optional": true
+    },
+    "butterfly": {
+      "path": "assets/models/butterfly.glb",
+      "license": "CC0",
+      "source": "https://github.com/ToxSam/cc0-models-Polygonal-Mind (MomusPark/Butterfly)",
+      "optional": true
     }
   },
   "sfx": {

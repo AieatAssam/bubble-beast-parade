@@ -42,10 +42,19 @@ conversions by ToxSam: https://github.com/ToxSam/cc0-models-Polygonal-Mind
 
 | Asset | File | Use in game |
 |---|---|---|
-| Crystal_Small_01 | `public/assets/models/crystal_small.glb` | Wand-charge gem HUD |
-| Crystal_Cluster | `public/assets/models/crystal_cluster.glb` | Garden crystal formations |
+| Crystal Crossroads / Crystal_Small_01 | `crystal_small.glb` | Wand-charge gem HUD |
+| Crystal Crossroads / Crystal_Cluster | `crystal_cluster.glb` | (spare, unused) |
+| MomusPark / Flower_01_a | `flower_a.glb` | Garden flowers |
+| MomusPark / Flower_02_a_Art | `flower_b.glb` | Garden flowers |
+| MomusPark / Flower_03_a | `flower_c.glb` | Garden flowers |
+| Avatar Garden / Flower05 | `flower_d.glb` | Garden flowers |
+| MomusPark / Mushroom_01_Art | `mushroom_a.glb` | Glowing mushrooms |
+| MomusPark / Mushroom_02_Art | `mushroom_b.glb` | Glowing mushrooms |
+| MomusPark / Str_Fountain_01_Art | `fountain.glb` | Pond-side fountain |
+| MomusPark / Butterfly | `butterfly.glb` | Animated butterflies |
 
-**Modified:** No (used as-is; recoloured at runtime via materials).
+All files under `public/assets/models/`. **Modified:** runtime material tints
+only; `flower_d` was mesh-simplified/compressed with `@gltf-transform/cli`.
 
 ## Everything else
 

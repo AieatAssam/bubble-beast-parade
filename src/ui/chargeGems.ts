@@ -27,6 +27,9 @@ interface GemSlot {
   /** Displayed fill 0..1 (smoothed toward target). */
   shown: number;
   gold: boolean;
+  sparkle: THREE.Points;
+  sparkleVel: Float32Array;
+  sparkleAge: number;
 }
 
 export class ChargeGems {
@@ -135,6 +138,26 @@ export class ChargeGems {
       coreR.group.scale.multiplyScalar(0.995); // core sits just inside the husk
       root.add(huskR.group, coreR.group);
       this.scene.add(root);
+
+      // Charge-complete sparkle burst
+      const SPARKS = 16;
+      const sgeo = new THREE.BufferGeometry();
+      sgeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(SPARKS * 3), 3));
+      const sparkle = new THREE.Points(
+        sgeo,
+        new THREE.PointsMaterial({
+          color: gold ? 0xffe08a : 0x9df4ff,
+          size: 0.14,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      sparkle.position.copy(root.position);
+      sparkle.visible = false;
+      this.scene.add(sparkle);
+
       this.slots.push({
         root,
         husk: huskR.group,
@@ -144,6 +167,9 @@ export class ChargeGems {
         huskMats: huskR.mats,
         shown: 1,
         gold,
+        sparkle,
+        sparkleVel: new Float32Array(SPARKS * 3),
+        sparkleAge: 9,
       });
     }
     this.ready = true;
@@ -167,24 +193,66 @@ export class ChargeGems {
       s.clip.constant = -1.15 + fill * 2.3;
 
       const isFull = target >= 1;
-      // Bounce when a crystal completes
-      if (isFull && !this.lastFull[i]) this.popT[i] = 0;
+      // Bounce + sparkle burst + colour pop when a crystal completes
+      if (isFull && !this.lastFull[i]) {
+        this.popT[i] = 0;
+        s.sparkleAge = 0;
+        s.sparkle.visible = true;
+        const pa = s.sparkle.geometry.getAttribute("position") as THREE.BufferAttribute;
+        for (let k = 0; k < pa.count; k++) {
+          pa.setXYZ(k, 0, 0.1, 0);
+          const th = Math.random() * Math.PI * 2;
+          const ph = Math.acos(2 * Math.random() - 1);
+          const v = 2.2 + Math.random() * 2.2;
+          s.sparkleVel[k * 3] = Math.sin(ph) * Math.cos(th) * v;
+          s.sparkleVel[k * 3 + 1] = Math.cos(ph) * v + 1;
+          s.sparkleVel[k * 3 + 2] = Math.sin(ph) * Math.sin(th) * v * 0.4;
+        }
+        pa.needsUpdate = true;
+      }
       this.lastFull[i] = isFull;
       this.popT[i] = Math.min(this.popT[i]! + dt * 3, 1);
-      const bounce = 1 + Math.sin(Math.min(this.popT[i]!, 1) * Math.PI) * 0.28;
+      const bounce = 1 + Math.sin(Math.min(this.popT[i]!, 1) * Math.PI) * 0.45;
 
       // Scale + motion: full crystals large and alive, empty husks small and still
-      const baseScale = 0.55 + fill * 0.45;
+      const baseScale = 0.45 + fill * 0.55;
       const pulse = isFull ? 1 + Math.sin(t * 3.2 + i) * 0.05 : 1;
       s.root.scale.setScalar(baseScale * pulse * bounce);
       s.root.rotation.y = isFull ? t * 0.9 + i : Math.sin(t * 0.6 + i) * 0.15;
 
       // Core glow strength follows fill; husk darkens when drained
+      // Colour pop: white-hot flash at completion settling into the gem hue
+      const popK = Math.min(this.popT[i]!, 1);
+      const flash = isFull ? Math.max(0, 1 - popK * 1.6) : 0;
+      const base = s.gold ? 0xffc23a : 0x18c8ff;
       for (const m of s.coreMats) {
-        m.emissiveIntensity = 0.35 + fill * (s.gold ? 0.9 : 0.65) + (isFull ? Math.sin(t * 3.2 + i) * 0.12 : 0);
+        m.emissiveIntensity =
+          0.35 + fill * (s.gold ? 0.9 : 0.65) + flash * 1.6 + (isFull ? Math.sin(t * 3.2 + i) * 0.12 : 0);
+        m.emissive.setHex(base).lerp(new THREE.Color(0xffffff), flash);
+        m.color.setHex(base).lerp(new THREE.Color(0xffffff), flash * 0.8);
+      }
+
+      // Sparkle animation
+      if (s.sparkleAge < 0.7) {
+        s.sparkleAge += dt;
+        const k2 = s.sparkleAge / 0.7;
+        const pa = s.sparkle.geometry.getAttribute("position") as THREE.BufferAttribute;
+        for (let k = 0; k < pa.count; k++) {
+          pa.setXYZ(
+            k,
+            pa.getX(k) + s.sparkleVel[k * 3]! * dt,
+            pa.getY(k) + s.sparkleVel[k * 3 + 1]! * dt,
+            pa.getZ(k) + s.sparkleVel[k * 3 + 2]! * dt,
+          );
+          s.sparkleVel[k * 3 + 1]! -= dt * 5;
+        }
+        pa.needsUpdate = true;
+        (s.sparkle.material as THREE.PointsMaterial).opacity = 1 - k2;
+      } else if (s.sparkle.visible) {
+        s.sparkle.visible = false;
       }
       for (const m of s.huskMats) {
-        m.opacity = 0.3 + (1 - fill) * 0.3;
+        m.opacity = 0.35 + (1 - fill) * 0.3;
       }
 
       // Overcharge slot: tiny dim socket until earned, golden crystal when held
