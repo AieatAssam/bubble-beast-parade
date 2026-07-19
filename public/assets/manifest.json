@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hdri": {
+    "environment": {
+      "path": "assets/hdri/rosendal_park_sunset_1k.hdr",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/rosendal_park_sunset"
+    }
+  },
+  "models": {},
+  "sfx": {
+    "pop": { "path": "assets/sfx/pop.ogg", "optional": true },
+    "thunk": { "path": "assets/sfx/thunk.ogg", "optional": true }
+  },
+  "notes": "Missing or failed entries always fall back to procedural geometry / synthesised WebAudio. The game must remain fully playable with an empty assets directory."
+}

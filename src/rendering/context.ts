@@ -85,11 +85,29 @@ export function createRenderContext(container: HTMLElement): RenderContext {
   return ctx;
 }
 
+interface AssetManifest {
+  hdri?: Record<string, { path: string }>;
+  sfx?: Record<string, { path: string }>;
+}
+
+/** Load the asset manifest; a missing manifest simply means "all fallbacks". */
+export async function loadManifest(): Promise<AssetManifest> {
+  try {
+    const res = await fetch("assets/manifest.json");
+    if (!res.ok) return {};
+    return (await res.json()) as AssetManifest;
+  } catch {
+    return {};
+  }
+}
+
 /** Load the Poly Haven HDRI as environment; resolves even on failure (fallback env). */
-export async function applyEnvironment(ctx: RenderContext): Promise<boolean> {
+export async function applyEnvironment(ctx: RenderContext, manifest: AssetManifest): Promise<boolean> {
   const pmrem = new THREE.PMREMGenerator(ctx.renderer);
   try {
-    const tex = await new RGBELoader().loadAsync("assets/hdri/rosendal_park_sunset_1k.hdr");
+    const path = manifest.hdri?.environment?.path;
+    if (!path) throw new Error("no hdri in manifest");
+    const tex = await new RGBELoader().loadAsync(path);
     tex.mapping = THREE.EquirectangularReflectionMapping;
     ctx.scene.environment = pmrem.fromEquirectangular(tex).texture;
     tex.dispose();

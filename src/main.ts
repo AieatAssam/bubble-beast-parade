@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createRenderContext, applyEnvironment } from "./rendering/context";
+import { createRenderContext, applyEnvironment, loadManifest } from "./rendering/context";
 import { createGarden } from "./rendering/garden";
 import { createPhysicsWorld } from "./systems/physics";
 import { BubblePool } from "./entities/bubble";
@@ -42,7 +42,8 @@ async function boot(): Promise<void> {
   const ctx = createRenderContext(app);
 
   setProgress(30, "Catching the sunset…");
-  const envOk = await applyEnvironment(ctx);
+  const manifest = await loadManifest();
+  const envOk = await applyEnvironment(ctx, manifest);
   if (!envOk) console.warn("[bbp] HDRI failed to load — using procedural environment");
 
   setProgress(50, "Planting the jewel garden…");
