@@ -235,12 +235,13 @@ async function boot(): Promise<void> {
       garden.update(dt, t, game.intensity);
       hud.update(game, dt, t);
 
-      // Pop-driven camera shake (suppressed under reduced motion)
+      // Gentle idle sway + pop-driven camera shake (both off under reduced motion)
       const shake = game.reducedMotion ? 0 : fx.shakeEnergy;
+      const sway = game.reducedMotion ? 0 : 1;
       ctx.camera.position.set(
-        camBase.x + (Math.random() - 0.5) * 0.06 * shake,
-        camBase.y + (Math.random() - 0.5) * 0.06 * shake,
-        camBase.z + (Math.random() - 0.5) * 0.03 * shake,
+        camBase.x + Math.sin(t * 0.21) * 0.22 * sway + (Math.random() - 0.5) * 0.06 * shake,
+        camBase.y + Math.sin(t * 0.17 + 2) * 0.12 * sway + (Math.random() - 0.5) * 0.06 * shake,
+        camBase.z + Math.cos(t * 0.13) * 0.14 * sway + (Math.random() - 0.5) * 0.03 * shake,
       );
     }
 

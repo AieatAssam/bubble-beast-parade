@@ -4,7 +4,11 @@ import {
   CHARGE_MAX, CHARGE_OVERCHARGE_MAX, CHARGE_REGEN_SECONDS, GRAND_ENTRANCE_AT,
   PERFECT_CHAIN_WINDOW, ROUND_SECONDS, type BubbleKind,
 } from "../data/bubbleTypes";
-import { randomColorFamily, type ColorFamily } from "../data/colors";
+import { COLOR_DEFS, randomColorFamily, type ColorFamily } from "../data/colors";
+
+const COLOR_DEFS_CSS = Object.fromEntries(
+  Object.entries(COLOR_DEFS).map(([k, v]) => [k, v.css]),
+) as Record<ColorFamily, string>;
 import { rollPrism, type PrismOutcomeDef } from "../data/prism";
 import type { Bubble, BubblePool } from "../entities/bubble";
 import { randomPath, GRAND_PATH, DRIFT_PATHS } from "./paths";
@@ -108,6 +112,15 @@ export class Game {
     sound.setMusicIntensity(0);
     this.garden.playFinale();
     sound.fanfare();
+    // Farewell fireworks over the conservatory
+    for (let i = 0; i < 4; i++) {
+      setTimeout(() => {
+        this.fx.confettiBurst(
+          new THREE.Vector3((Math.random() - 0.5) * 12, 5 + Math.random() * 3, (Math.random() - 0.5) * 4),
+          true,
+        );
+      }, i * 350);
+    }
     this.events.onRoundEnd();
   }
 
@@ -339,6 +352,19 @@ export class Game {
     this.fx.burst(b.pos, b.color, big);
     this.fx.shellShards(b.pos, b.color, b.radius, big);
     this.fx.scorePopup(screen.x, screen.y, `+${score}`, b.color, big);
+
+    // Dopamine layer: milestone celebrations that escalate with the chain
+    const css = COLOR_DEFS_CSS[b.color];
+    if (big) {
+      this.fx.confettiBurst(b.pos, b.kind === "grand");
+      this.fx.vignetteFlash("rgba(255,194,58,0.55)");
+      if (b.kind === "grand") this.fx.showBanner("👑 GRAND CAPTURE!", "#ffe08a");
+    }
+    if (chained && (this.chain === 3 || this.chain === 5 || this.chain === 8 || this.chain === 12)) {
+      this.fx.showBanner(`COMBO ×${this.chain}!`, css);
+      this.fx.vignetteFlash(`${css}88`);
+      this.fx.confettiBurst(b.pos, this.chain >= 8);
+    }
 
     // Physical blast: Rapier impulse shoves nearby bubbles away from the pop
     const blastR = big ? 5 : 3.2;

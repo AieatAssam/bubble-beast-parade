@@ -249,6 +249,15 @@ export class BubblePool {
       b.age += dt * timeScale;
 
       if (b.state === "idle") {
+        // Elastic pop-in on spawn: overshoot then settle
+        if (b.age < 0.45) {
+          const k = b.age / 0.45;
+          const ease = 1 + Math.pow(2, -10 * k) * Math.sin((k * 10 - 0.75) * 2.094) * 1.4;
+          b.group.scale.setScalar(b.radius * Math.max(0.05, ease));
+        } else if (b.age < 0.5) {
+          b.group.scale.setScalar(b.radius);
+        }
+
         // Path-following spring force via Rapier
         const u = (b.pathPhase + b.age / b.path.period) % 1;
         b.path.curve.getPointAt(u, this.target);

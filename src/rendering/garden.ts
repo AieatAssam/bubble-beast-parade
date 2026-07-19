@@ -54,6 +54,9 @@ export function createGarden(models: ModelLibrary): Garden {
   ): THREE.Group | null => {
     const m = cloneModel(models, name);
     if (!m) return null;
+    m.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.castShadow = true;
+    });
     m.position.set(x, 0, z);
     m.rotation.y = ry;
     m.scale.multiplyScalar(scale);
@@ -462,11 +465,13 @@ export function createGarden(models: ModelLibrary): Garden {
   const sun = new THREE.DirectionalLight(0xff9a58, 1.7);
   sun.position.set(14, 5.5, 9);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -12;
-  sun.shadow.camera.right = 12;
-  sun.shadow.camera.top = 12;
-  sun.shadow.camera.bottom = -12;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0004;
+  sun.shadow.radius = 5;
+  sun.shadow.camera.left = -16;
+  sun.shadow.camera.right = 16;
+  sun.shadow.camera.top = 16;
+  sun.shadow.camera.bottom = -16;
   group.add(sun);
   const accentA = new THREE.PointLight(0x35d7e8, 30, 18);
   accentA.position.set(-6, 4, 3);
@@ -513,6 +518,7 @@ export function createGarden(models: ModelLibrary): Garden {
   basePlinth.receiveShadow = true;
   carousel.add(basePlinth);
   const platter = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 0.25, 24), goldMat);
+  platter.castShadow = true;
   platter.position.y = 0.62;
   carousel.add(platter);
   const spinner = new THREE.Group();
@@ -567,6 +573,7 @@ export function createGarden(models: ModelLibrary): Garden {
     spinner.add(mount);
   }
   const canopy = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.3, 12), baseMat);
+  canopy.castShadow = true;
   canopy.position.y = 3.3;
   carousel.add(canopy);
   const canopyTrim = new THREE.Mesh(new THREE.TorusGeometry(2.45, 0.08, 8, 32), goldMat);

@@ -1,6 +1,25 @@
 import * as THREE from "three";
 import { COLOR_DEFS, type ColorFamily } from "../data/colors";
 
+/** Soft radial glow sprite — turns square points into round glowing motes. */
+export function makeGlowTexture(): THREE.Texture {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const g = canvas.getContext("2d")!;
+  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.35, "rgba(255,255,255,0.8)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+export const glowTexture = makeGlowTexture();
+
 /**
  * Pop-feel VFX (SPEC §4): squash-burst is driven here for popping bubbles,
  * plus pooled colour shockwave rings, particle bursts, and score popups.
@@ -43,11 +62,23 @@ interface ShardSet {
   active: boolean;
 }
 
+interface Confetti {
+  mesh: THREE.InstancedMesh;
+  vel: Float32Array;
+  spin: Float32Array;
+  age: number;
+  life: number;
+  active: boolean;
+}
+
 export class PopFX {
   private rings: Ring[] = [];
   private bursts: Burst[] = [];
   private popups: Popup[] = [];
   private shards: ShardSet[] = [];
+  private confetti: Confetti[] = [];
+  private vignette: HTMLDivElement;
+  private banner: HTMLDivElement;
   private scene: THREE.Scene;
   private hud: HTMLElement;
   reducedMotion = false;
@@ -75,7 +106,8 @@ export class PopFX {
       const points = new THREE.Points(
         geo,
         new THREE.PointsMaterial({
-          size: 0.14,
+          size: 0.2,
+          map: glowTexture,
           vertexColors: true,
           transparent: true,
           opacity: 1,
@@ -115,6 +147,46 @@ export class PopFX {
         active: false,
       });
     }
+    // Confetti petals: coloured tumbling quads for celebrations
+    const confGeo = new THREE.PlaneGeometry(0.14, 0.2);
+    for (let c = 0; c < 4; c++) {
+      const COUNT = 36;
+      const mesh = new THREE.InstancedMesh(
+        confGeo,
+        new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: 1 }),
+        COUNT,
+      );
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      for (let i = 0; i < COUNT; i++) {
+        mesh.setColorAt(i, new THREE.Color().setHSL(Math.random(), 0.85, 0.65));
+      }
+      this.scene.add(mesh);
+      this.confetti.push({
+        mesh,
+        vel: new Float32Array(COUNT * 3),
+        spin: new Float32Array(COUNT * 4),
+        age: 0,
+        life: 2.2,
+        active: false,
+      });
+    }
+
+    // Screen-edge vignette flash for milestone moments
+    this.vignette = document.createElement("div");
+    this.vignette.style.cssText =
+      "position:absolute;inset:0;pointer-events:none;opacity:0;z-index:25;" +
+      "transition:opacity .12s ease-out;";
+    this.hud.appendChild(this.vignette);
+
+    // Combo milestone banner
+    this.banner = document.createElement("div");
+    this.banner.style.cssText =
+      "position:absolute;left:50%;top:32%;transform:translate(-50%,-50%) scale(0);" +
+      "font-size:54px;font-weight:900;pointer-events:none;z-index:26;" +
+      "text-shadow:0 4px 18px rgba(0,0,0,.7);transition:transform .18s cubic-bezier(.2,2.4,.4,1),opacity .4s;opacity:0;";
+    this.hud.appendChild(this.banner);
+
     for (let i = 0; i < POPUP_POOL; i++) {
       const el = document.createElement("div");
       el.style.cssText =
@@ -226,6 +298,57 @@ export class PopFX {
     p.el.style.top = `${screenY}px`;
   }
 
+  /** Confetti burst at a world position (or across the sky for fireworks). */
+  confettiBurst(pos: THREE.Vector3, big = false): void {
+    const c = this.confetti.find((x) => !x.active);
+    if (!c) return;
+    c.active = true;
+    c.age = 0;
+    c.life = big ? 2.6 : 1.8;
+    c.mesh.visible = true;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const count = c.mesh.count;
+    const speed = big ? 7 : 4.5;
+    for (let i = 0; i < count; i++) {
+      const th = Math.random() * Math.PI * 2;
+      const up = Math.random() * 0.9 + 0.4;
+      c.vel[i * 3] = Math.cos(th) * speed * (0.3 + Math.random() * 0.7);
+      c.vel[i * 3 + 1] = up * speed * 0.9;
+      c.vel[i * 3 + 2] = Math.sin(th) * speed * (0.3 + Math.random() * 0.7);
+      c.spin[i * 4] = Math.random() - 0.5;
+      c.spin[i * 4 + 1] = Math.random() - 0.5;
+      c.spin[i * 4 + 2] = Math.random() - 0.5;
+      c.spin[i * 4 + 3] = 4 + Math.random() * 10;
+      q.setFromEuler(new THREE.Euler(Math.random() * 6, Math.random() * 6, 0));
+      m.compose(pos, q, new THREE.Vector3(1, 1, 1));
+      c.mesh.setMatrixAt(i, m);
+    }
+    c.mesh.instanceMatrix.needsUpdate = true;
+    (c.mesh.material as THREE.MeshBasicMaterial).opacity = 1;
+  }
+
+  /** Colour flash around the screen edge (suppressed by reduced-flash). */
+  vignetteFlash(css: string): void {
+    if (this.reducedFlash) return;
+    this.vignette.style.background =
+      `radial-gradient(ellipse at center, transparent 55%, ${css} 130%)`;
+    this.vignette.style.opacity = "0.85";
+    setTimeout(() => (this.vignette.style.opacity = "0"), 160);
+  }
+
+  /** Big combo/milestone banner with punch-in scale. */
+  showBanner(text: string, css: string): void {
+    this.banner.textContent = text;
+    this.banner.style.color = css;
+    this.banner.style.opacity = "1";
+    this.banner.style.transform = "translate(-50%,-50%) scale(1)";
+    setTimeout(() => {
+      this.banner.style.opacity = "0";
+      this.banner.style.transform = "translate(-50%,-50%) scale(0.6)";
+    }, 900);
+  }
+
   update(dt: number): void {
     const motion = this.reducedMotion ? 0.6 : 1;
     this.shakeEnergy = Math.max(0, this.shakeEnergy - dt * 2.2);
@@ -299,6 +422,39 @@ export class PopFX {
       posAttr.needsUpdate = true;
       (b.points.material as THREE.PointsMaterial).opacity = 1 - b.age / life;
     }
+    const cm = new THREE.Matrix4();
+    const cp = new THREE.Vector3();
+    const cq = new THREE.Quaternion();
+    const cs = new THREE.Vector3();
+    const cAxis = new THREE.Vector3();
+    const cSpin = new THREE.Quaternion();
+    for (const c of this.confetti) {
+      if (!c.active) continue;
+      c.age += dt;
+      if (c.age >= c.life) {
+        c.active = false;
+        c.mesh.visible = false;
+        continue;
+      }
+      for (let i = 0; i < c.mesh.count; i++) {
+        c.mesh.getMatrixAt(i, cm);
+        cm.decompose(cp, cq, cs);
+        cp.x += c.vel[i * 3]! * dt * motion;
+        cp.y += c.vel[i * 3 + 1]! * dt * motion;
+        cp.z += c.vel[i * 3 + 2]! * dt * motion;
+        c.vel[i * 3 + 1]! -= dt * 3.2; // flutter-light gravity
+        c.vel[i * 3]! *= 1 - dt * 0.6;
+        c.vel[i * 3 + 2]! *= 1 - dt * 0.6;
+        cAxis.set(c.spin[i * 4]!, c.spin[i * 4 + 1]!, c.spin[i * 4 + 2]!).normalize();
+        cSpin.setFromAxisAngle(cAxis, c.spin[i * 4 + 3]! * dt);
+        cq.multiply(cSpin);
+        cm.compose(cp, cq, cs);
+        c.mesh.setMatrixAt(i, cm);
+      }
+      c.mesh.instanceMatrix.needsUpdate = true;
+      (c.mesh.material as THREE.MeshBasicMaterial).opacity = Math.min(1, (c.life - c.age) / 0.6);
+    }
+
     for (const p of this.popups) {
       if (!p.active) continue;
       p.age += dt;
