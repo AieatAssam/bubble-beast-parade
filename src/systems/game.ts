@@ -503,6 +503,19 @@ export class Game {
     }
   }
 
+  /**
+   * A bubble broke on a physical bump instead of being popped (SPEC
+   * extension: collision fragility). No score, chain untouched — visible
+   * bad luck, not a punishment. Distinct from both a pop (no shockwave
+   * ring, no confetti, no score popup) and natural dissipation (sharper,
+   * with a crack sound) so the player always reads what happened.
+   */
+  handleShatter(b: Bubble): void {
+    if (!this.running) return;
+    this.fx.shellShards(b.pos, b.color, b.radius * 0.7, false);
+    sound.crack();
+  }
+
   /** External bonus (e.g. new colour variant): adds score with celebration. */
   addBonus(points: number, label: string, css: string): void {
     this.score += points;

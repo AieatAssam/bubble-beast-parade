@@ -4,13 +4,16 @@ One entry per external asset used by Bubble Beast Parade.
 
 ## 3D / Environment
 
-### Rosendal Park Sunset (HDRI)
-- **Creator:** Greg Zaal / Poly Haven
-- **Source:** https://polyhaven.com/a/rosendal_park_sunset
-- **File:** `public/assets/hdri/rosendal_park_sunset_1k.hdr`
-- **Licence:** CC0 (public domain)
-- **Modified:** No (used as-is, 1K resolution download)
-- **Use:** Image-based environment lighting and reflections for the conservatory scene.
+### Time-of-day HDRIs (three skyboxes, one randomly chosen per round)
+All from Poly Haven, CC0 (public domain), 1K resolution downloads, used as-is.
+
+- **Rosendal Park Sunset** — https://polyhaven.com/a/rosendal_park_sunset — `rosendal_park_sunset_1k.hdr` — dusk preset
+- **Kloofendal 48d Partly Cloudy Puresky** — https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky — `kloofendal_partly_cloudy_1k.hdr` — day preset
+- **Moonless Golf** — https://polyhaven.com/a/moonless_golf — `moonless_golf_1k.hdr` — night preset
+
+**Use:** Skybox background + image-based environment lighting/reflections. Matching
+fog colour, sun colour/position, hemisphere light, and glow intensity are tuned per
+preset in `src/data/timeOfDay.ts`.
 
 ## 3D Models (all Poly Haven, CC0, 1k-texture glTF)
 

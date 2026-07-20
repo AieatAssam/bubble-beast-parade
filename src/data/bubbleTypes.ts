@@ -18,6 +18,19 @@ export interface BubbleTypeDef {
   spawnWeight: number;
   /** Short help text shown in tooltips + help screen. */
   help: string;
+  /**
+   * Collision fragility (new): bubbles spawn immortal to bumps. After
+   * `collisionImmuneSeconds` alive, fragility ramps 0→1 over
+   * `collisionRampSeconds`, and each physical contact rolls a shatter
+   * chance of `fragility * collisionMaxPopChance`. Value-inverse — the
+   * more valuable the bubble, the sooner and harder it can break on a
+   * bump, layering real-time risk on top of the dissipation timer.
+   * A shatter scores nothing and never touches the chain (bad luck, not
+   * a punishment). Set collisionImmuneSeconds very high to opt a kind out.
+   */
+  collisionImmuneSeconds: number;
+  collisionRampSeconds: number;
+  collisionMaxPopChance: number;
 }
 
 export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
@@ -31,6 +44,9 @@ export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
     radius: 0.55,
     spawnWeight: 58,
     help: "Iridescent shell with a beast inside. Lingers a long time — pop freely with spare charges.",
+    collisionImmuneSeconds: 999,
+    collisionRampSeconds: 1,
+    collisionMaxPopChance: 0,
   },
   colorBond: {
     kind: "colorBond",
@@ -42,6 +58,9 @@ export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
     radius: 0.58,
     spawnWeight: 20,
     help: "Saturated aura with an orbiting ribbon. Extends a same-colour chain for multiplying score.",
+    collisionImmuneSeconds: 5,
+    collisionRampSeconds: 4,
+    collisionMaxPopChance: 0.25,
   },
   chorus: {
     kind: "chorus",
@@ -53,6 +72,9 @@ export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
     radius: 0.62,
     spawnWeight: 10,
     help: "A central bubble with three orbiters. One well-timed pop captures all four.",
+    collisionImmuneSeconds: 4.5,
+    collisionRampSeconds: 3.5,
+    collisionMaxPopChance: 0.25,
   },
   prism: {
     kind: "prism",
@@ -64,6 +86,10 @@ export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
     radius: 0.5,
     spawnWeight: 8,
     help: "Faceted rainbow crystal. Starts one temporary event from the disclosed pool — exact odds in Help.",
+    // Exempt: a prism's reward is a disclosed, guaranteed event — never lost to a random bump.
+    collisionImmuneSeconds: 999,
+    collisionRampSeconds: 1,
+    collisionMaxPopChance: 0,
   },
   golden: {
     kind: "golden",
@@ -75,6 +101,9 @@ export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
     radius: 0.66,
     spawnWeight: 4,
     help: "Ornate gold filigree, slow and majestic — but dissipates fast. Popping it refunds the charge.",
+    collisionImmuneSeconds: 1.2,
+    collisionRampSeconds: 1.3,
+    collisionMaxPopChance: 0.45,
   },
   grand: {
     kind: "grand",
@@ -86,8 +115,19 @@ export const BUBBLE_TYPES: Record<BubbleKind, BubbleTypeDef> = {
     radius: 1.05,
     spawnWeight: 0,
     help: "Huge finale bubble in the last five seconds. Tightest window of all. Popping it refunds the charge.",
+    collisionImmuneSeconds: 0.6,
+    collisionRampSeconds: 1.0,
+    collisionMaxPopChance: 0.55,
   },
 };
+
+/** Fragility 0..1 for a bubble of this kind at this age (SPEC extension: collision risk). */
+export function collisionFragility(kind: BubbleKind, age: number): number {
+  const def = BUBBLE_TYPES[kind];
+  const t = age - def.collisionImmuneSeconds;
+  if (t <= 0) return 0;
+  return Math.min(1, t / def.collisionRampSeconds);
+}
 
 /** Charge economy constants (SPEC §5). */
 export const CHARGE_MAX = 3;

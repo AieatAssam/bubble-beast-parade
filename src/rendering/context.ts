@@ -4,6 +4,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { TIME_OF_DAY, TIME_OF_DAY_IDS, type TimeOfDayDef, type TimeOfDayId } from "../data/timeOfDay";
 
 export interface RenderContext {
   renderer: THREE.WebGLRenderer;
@@ -101,47 +102,79 @@ export async function loadManifest(): Promise<AssetManifest> {
   }
 }
 
-/** Load the Poly Haven HDRI as environment; resolves even on failure (fallback env). */
-export async function applyEnvironment(ctx: RenderContext, manifest: AssetManifest): Promise<boolean> {
+export interface SkyboxEntry {
+  /** Background texture — the HDRI rendered directly as sky. */
+  background: THREE.Texture;
+  /** PMREM-processed texture for reflections/IBL. */
+  environment: THREE.Texture;
+}
+
+export type SkyboxSet = Map<TimeOfDayId, SkyboxEntry>;
+
+/**
+ * Preload every time-of-day HDRI once (during the loading screen) so
+ * switching skybox between rounds is instant with no reload jank. A kind
+ * that fails to fetch/decode is simply absent from the returned map —
+ * applyTimeOfDay falls back to a procedural gradient sky for it.
+ */
+export async function loadSkyboxSet(ctx: RenderContext): Promise<SkyboxSet> {
   const pmrem = new THREE.PMREMGenerator(ctx.renderer);
-  try {
-    const path = manifest.hdri?.environment?.path;
-    if (!path) throw new Error("no hdri in manifest");
-    const tex = await new RGBELoader().loadAsync(path);
-    tex.mapping = THREE.EquirectangularReflectionMapping;
-    ctx.scene.environment = pmrem.fromEquirectangular(tex).texture;
-    // Real sky: the HDRI itself as background (kept, not disposed)
-    ctx.scene.background = tex;
-    ctx.scene.backgroundBlurriness = 0.09;
-    ctx.scene.backgroundIntensity = 0.38; // dusk: keep the sky readable but let the garden glow lead
-    ctx.scene.environmentIntensity = 0.5; // stop bright-sky IBL from washing out pale materials
-    if (ctx.scene.fog instanceof THREE.FogExp2) {
-      ctx.scene.fog.color.setHex(0x4a3560); // warm sunset haze to match the HDRI horizon
-      ctx.scene.fog.density = 0.016;
-    }
-    pmrem.dispose();
-    return true;
-  } catch {
-    // Procedural fallback: soft gradient room so materials still get reflections.
-    const envScene = new THREE.Scene();
-    const grad = new THREE.Mesh(
-      new THREE.SphereGeometry(10, 16, 16),
-      new THREE.MeshBasicMaterial({ side: THREE.BackSide, vertexColors: true }),
-    );
-    const geo = grad.geometry;
-    const colors: number[] = [];
-    const pos = geo.getAttribute("position");
-    const cTop = new THREE.Color(0xffd9a0);
-    const cBottom = new THREE.Color(0x2a1a5e);
-    for (let i = 0; i < pos.count; i++) {
-      const t = (pos.getY(i) / 10 + 1) / 2;
-      const c = cBottom.clone().lerp(cTop, t);
-      colors.push(c.r, c.g, c.b);
-    }
-    geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    envScene.add(grad);
-    ctx.scene.environment = pmrem.fromScene(envScene, 0.04).texture;
-    pmrem.dispose();
-    return false;
+  const set: SkyboxSet = new Map();
+  await Promise.all(
+    TIME_OF_DAY_IDS.map(async (id) => {
+      try {
+        const def = TIME_OF_DAY[id];
+        const tex = await new RGBELoader().loadAsync(def.hdriPath);
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        const envMap = pmrem.fromEquirectangular(tex).texture;
+        set.set(id, { background: tex, environment: envMap });
+      } catch {
+        // Absent from the set — applyTimeOfDay uses the procedural fallback.
+      }
+    }),
+  );
+  pmrem.dispose();
+  return set;
+}
+
+/** Apply a time-of-day preset's skybox + fog/exposure to the render context. */
+export function applyTimeOfDay(ctx: RenderContext, def: TimeOfDayDef, skyboxes: SkyboxSet): boolean {
+  const entry = skyboxes.get(def.id);
+  ctx.renderer.toneMappingExposure = def.toneMappingExposure;
+  if (ctx.scene.fog instanceof THREE.FogExp2) {
+    ctx.scene.fog.color.setHex(def.fogColor);
+    ctx.scene.fog.density = def.fogDensity;
   }
+  if (entry) {
+    ctx.scene.environment = entry.environment;
+    ctx.scene.background = entry.background;
+    ctx.scene.backgroundBlurriness = def.backgroundBlurriness;
+    ctx.scene.backgroundIntensity = def.backgroundIntensity;
+    ctx.scene.environmentIntensity = def.environmentIntensity;
+    return true;
+  }
+  // Procedural fallback: soft gradient room so materials still get reflections.
+  const pmrem = new THREE.PMREMGenerator(ctx.renderer);
+  const envScene = new THREE.Scene();
+  const grad = new THREE.Mesh(
+    new THREE.SphereGeometry(10, 16, 16),
+    new THREE.MeshBasicMaterial({ side: THREE.BackSide, vertexColors: true }),
+  );
+  const geo = grad.geometry;
+  const colors: number[] = [];
+  const pos = geo.getAttribute("position");
+  const cTop = new THREE.Color(def.sunColor);
+  const cBottom = new THREE.Color(def.fogColor);
+  for (let i = 0; i < pos.count; i++) {
+    const t = (pos.getY(i) / 10 + 1) / 2;
+    const c = cBottom.clone().lerp(cTop, t);
+    colors.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  envScene.add(grad);
+  ctx.scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+  ctx.scene.background = new THREE.Color(def.fogColor);
+  ctx.scene.environmentIntensity = def.environmentIntensity;
+  pmrem.dispose();
+  return false;
 }

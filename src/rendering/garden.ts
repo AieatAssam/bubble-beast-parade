@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { COLOR_DEFS, COLOR_FAMILIES } from "../data/colors";
 import { cloneModel, type ModelLibrary } from "../assets/models";
+import type { TimeOfDayDef } from "../data/timeOfDay";
 
 /**
  * Procedural magical conservatory diorama: glass greenhouse shell, ground,
@@ -16,6 +17,8 @@ export interface Garden {
   playFinale(): void;
   /** Recolour accent lights (Colour Carnival). null restores defaults. */
   setCarnivalColor(hex: number | null): void;
+  /** Relight the garden for a new time-of-day skybox (sun/hemi/fireflies/accents). */
+  setTimeOfDay(def: TimeOfDayDef): void;
 }
 
 const tmpMat = new THREE.Matrix4();
@@ -599,6 +602,7 @@ export function createGarden(models: ModelLibrary): Garden {
   // ---------- Animation state ----------
   let finaleT = -1; // >=0 while finale playing
   let carnival: number | null = null;
+  let glowScale = 1;
 
   function update(dt: number, t: number, energy: number): void {
     const spinBoost = finaleT >= 0 ? 4 : 1 + energy * 1.5;
@@ -674,9 +678,9 @@ export function createGarden(models: ModelLibrary): Garden {
       bf.obj.rotation.z = Math.sin(t * 7 + bf.phase) * 0.25;
     }
 
-    // Accent light gentle pulse
-    accentA.intensity = 30 + Math.sin(t * 1.3) * 8;
-    accentB.intensity = 30 + Math.sin(t * 1.1 + 2) * 8;
+    // Accent light gentle pulse, scaled by the current time-of-day's glow boost
+    accentA.intensity = (30 + Math.sin(t * 1.3) * 8) * glowScale;
+    accentB.intensity = (30 + Math.sin(t * 1.1 + 2) * 8) * glowScale;
   }
 
   return {
@@ -691,6 +695,17 @@ export function createGarden(models: ModelLibrary): Garden {
       for (const [light, orig] of defaultAccents) {
         light.color.setHex(carnival ?? orig);
       }
+    },
+    setTimeOfDay(def) {
+      hemi.color.setHex(def.hemiSky);
+      hemi.groundColor.setHex(def.hemiGround);
+      hemi.intensity = def.hemiIntensity;
+      sun.color.setHex(def.sunColor);
+      sun.intensity = def.sunIntensity;
+      sun.position.set(...def.sunPos);
+      glowScale = def.glowBoost;
+      accentC.intensity = 24 * glowScale;
+      (flies.material as THREE.PointsMaterial).opacity = Math.min(1, 0.9 * glowScale);
     },
   };
 }

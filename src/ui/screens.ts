@@ -127,6 +127,10 @@ export class Screens {
       Object.values(BUBBLE_TYPES)
         .map((d) => `• <b>${d.label}</b> — ${d.help}`)
         .join("<br>") +
+      `<br><br><b>Bump risk:</b> bubbles start immortal to collisions, but Colour Bond, Chorus, ` +
+      `Golden and Grand bubbles gradually turn brittle the longer they drift (watch for a faint grey ` +
+      `crackle) — bump one into another bubble while brittle and it can shatter for nothing. Standard ` +
+      `and Prism bubbles never shatter this way.` +
       `<br><br><b>Prism outcomes (exact odds):</b><br>` +
       PRISM_OUTCOMES.map((o) => `• ${o.icon} <b>${o.label} — ${o.odds}%:</b> ${o.help}`).join("<br>");
     el.append(help);

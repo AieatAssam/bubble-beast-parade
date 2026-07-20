@@ -1,10 +1,20 @@
 {
   "version": 1,
   "hdri": {
-    "environment": {
+    "dawn": {
       "path": "assets/hdri/rosendal_park_sunset_1k.hdr",
       "license": "CC0",
       "source": "https://polyhaven.com/a/rosendal_park_sunset"
+    },
+    "day": {
+      "path": "assets/hdri/kloofendal_partly_cloudy_1k.hdr",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky"
+    },
+    "night": {
+      "path": "assets/hdri/moonless_golf_1k.hdr",
+      "license": "CC0",
+      "source": "https://polyhaven.com/a/moonless_golf"
     }
   },
   "models": {

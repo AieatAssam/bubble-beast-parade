@@ -137,6 +137,32 @@ export class SoundEngine {
     this.tone(1318.5, 0.4, "sine", 0.25, 2637);
   }
 
+  /** Brittle glass-crack cue for a collision shatter — distinct from a pop: no bright chirp, just a dry break. */
+  crack(): void {
+    const ctx = this.ensure();
+    if (!ctx || !this.master) return;
+    const t = ctx.currentTime;
+    const noise = this.noiseBurst(ctx, 0.12);
+    const filt = ctx.createBiquadFilter();
+    filt.type = "highpass";
+    filt.frequency.value = 900;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.22, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    noise.connect(filt).connect(g).connect(this.master);
+    noise.start(t);
+    const dull = ctx.createOscillator();
+    dull.type = "triangle";
+    dull.frequency.setValueAtTime(180, t);
+    dull.frequency.exponentialRampToValueAtTime(70, t + 0.1);
+    const dg = ctx.createGain();
+    dg.gain.setValueAtTime(0.18, t);
+    dg.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    dull.connect(dg).connect(this.master);
+    dull.start(t);
+    dull.stop(t + 0.15);
+  }
+
   /** UI click / hover cue. */
   ui(freq = 660, gain = 0.12): void {
     this.tone(freq, 0.08, "triangle", gain);

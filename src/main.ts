@@ -1,6 +1,7 @@
 import * as THREE from "three";
-import { createRenderContext, applyEnvironment, loadManifest } from "./rendering/context";
+import { createRenderContext, loadSkyboxSet, applyTimeOfDay } from "./rendering/context";
 import { createGarden } from "./rendering/garden";
+import { randomTimeOfDay } from "./data/timeOfDay";
 import { loadModels } from "./assets/models";
 import { createPhysicsWorld } from "./systems/physics";
 import { BubblePool } from "./entities/bubble";
@@ -42,10 +43,11 @@ async function boot(): Promise<void> {
   setProgress(10, "Raising the glass dome…");
   const ctx = createRenderContext(app);
 
-  setProgress(30, "Catching the sunset…");
-  const manifest = await loadManifest();
-  const envOk = await applyEnvironment(ctx, manifest);
-  if (!envOk) console.warn("[bbp] HDRI failed to load — using procedural environment");
+  setProgress(20, "Catching every hour of daylight…");
+  const skyboxes = await loadSkyboxSet(ctx);
+  let currentTimeOfDay = randomTimeOfDay();
+  const skyOk = applyTimeOfDay(ctx, currentTimeOfDay, skyboxes);
+  if (!skyOk) console.warn(`[bbp] ${currentTimeOfDay.id} HDRI failed to load — using procedural sky`);
 
   setProgress(45, "Growing real trees…");
   const models = await loadModels((done, total) =>
@@ -55,6 +57,7 @@ async function boot(): Promise<void> {
   setProgress(66, "Planting the jewel garden…");
   const garden = createGarden(models);
   ctx.scene.add(garden.group);
+  garden.setTimeOfDay(currentTimeOfDay);
 
   setProgress(74, "Waking the physics fairies…");
   const physics = await createPhysicsWorld();
@@ -181,6 +184,10 @@ async function boot(): Promise<void> {
 
   function startRun(): void {
     newCreaturesThisRun = [];
+    // Fresh time-of-day each round: the conservatory looks different every replay.
+    currentTimeOfDay = randomTimeOfDay();
+    applyTimeOfDay(ctx, currentTimeOfDay, skyboxes);
+    garden.setTimeOfDay(currentTimeOfDay);
     screens.show(null);
     hud.show(true);
     sound.ensure();
@@ -242,7 +249,8 @@ async function boot(): Promise<void> {
       physics.step(dt);
       game.update(dt, t);
       const timeScale = game.hitStop > 0 && !game.reducedMotion ? 0 : 1;
-      pool.update(dt, t, timeScale);
+      const { shattered } = pool.update(dt, t, timeScale);
+      for (const b of shattered) game.handleShatter(b);
       wand.update(dt, t, pool.active);
       fx.update(dt);
       garden.update(dt, t, game.intensity);

@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import type RAPIER from "@dimforge/rapier3d-compat";
-import { BUBBLE_TYPES, type BubbleKind } from "../data/bubbleTypes";
+import { BUBBLE_TYPES, collisionFragility, type BubbleKind } from "../data/bubbleTypes";
 import { COLOR_DEFS, type ColorFamily } from "../data/colors";
 import { pickCreature, type CreatureDef } from "../data/creatures";
 import { buildCreatureMesh, animateCreature } from "../rendering/creatureMesh";
 import type { DriftPath } from "../systems/paths";
 import type { PhysicsWorld } from "../systems/physics";
 
-export type BubbleState = "idle" | "popping" | "expiring" | "dead";
+export type BubbleState = "idle" | "popping" | "expiring" | "shattering" | "dead";
 
 export interface Bubble {
   id: number;
@@ -23,6 +23,7 @@ export interface Bubble {
   warnRing: THREE.Mesh;
   beast: THREE.Group;
   body: RAPIER.RigidBody | null;
+  colliderHandle: number | null;
   path: DriftPath;
   pathPhase: number;
   radius: number;
@@ -30,10 +31,14 @@ export interface Bubble {
   miniValue: boolean;
   /** World position cache. */
   pos: THREE.Vector3;
+  /** 0..1 collision-shatter risk; ramps up with age, faster for pricier kinds. */
+  fragility: number;
 }
 
 const shellGeo = new THREE.SphereGeometry(1, 28, 22);
 const ringGeo = new THREE.TorusGeometry(1.25, 0.035, 8, 48);
+const tmpJitterEuler = new THREE.Euler();
+const tmpJitterQuat = new THREE.Quaternion();
 const orbiterGeo = new THREE.SphereGeometry(0.28, 14, 10);
 const prismGeo = new THREE.IcosahedronGeometry(1, 0);
 
@@ -100,6 +105,7 @@ export class BubblePool {
   private container: THREE.Group;
   private physics: PhysicsWorld;
   private target = new THREE.Vector3();
+  private byCollider = new Map<number, Bubble>();
 
   constructor(container: THREE.Group, physics: PhysicsWorld) {
     this.container = container;
@@ -130,8 +136,8 @@ export class BubblePool {
       group.add(shell, warnRing);
       b = {
         id: 0, kind, color, creature, state: "dead", age: 0, lifespan: 0,
-        group, shell, warnRing, beast: new THREE.Group(), body: null,
-        path, pathPhase: 0, radius, miniValue: false, pos: new THREE.Vector3(),
+        group, shell, warnRing, beast: new THREE.Group(), body: null, colliderHandle: null,
+        path, pathPhase: 0, radius, miniValue: false, pos: new THREE.Vector3(), fragility: 0,
       };
     }
 
@@ -146,6 +152,8 @@ export class BubblePool {
     b.pathPhase = Math.random();
     b.radius = radius;
     b.miniValue = opts.mini ?? false;
+    b.fragility = 0;
+    b.group.rotation.set(0, 0, 0);
 
     // Rebuild kind-specific visuals
     b.shell.material = makeShellMaterial(kind, color);
@@ -233,16 +241,49 @@ export class BubblePool {
     const p0 = b.path.curve.getPointAt(b.pathPhase);
     b.group.position.copy(p0);
     b.pos.copy(p0);
-    b.body = this.physics.createBubbleBody(p0.x, p0.y, p0.z, radius);
+    const created = this.physics.createBubbleBody(p0.x, p0.y, p0.z, radius);
+    b.body = created.body;
+    b.colliderHandle = created.colliderHandle;
+    this.byCollider.set(created.colliderHandle, b);
 
     this.container.add(b.group);
     this.active.push(b);
     return b;
   }
 
-  /** Advance drift, dissipation, and visuals. Returns bubbles that expired this frame. */
-  update(dt: number, t: number, timeScale: number): Bubble[] {
+  /**
+   * Advance drift, dissipation, visuals, and collision-fragility shatters.
+   * Returns bubbles that expired naturally and bubbles shattered by a bump
+   * (both already despawned by the time they're returned).
+   */
+  update(dt: number, t: number, timeScale: number): { expired: Bubble[]; shattered: Bubble[] } {
     const expired: Bubble[] = [];
+    const shattered: Bubble[] = [];
+
+    // Resolve physical contacts first: a little tumble on every bump for a
+    // livelier, more physical feel, then roll a shatter chance for each
+    // fragile party in the pair.
+    this.physics.drainCollisions((h1, h2) => {
+      for (const h of [h1, h2]) {
+        const b = this.byCollider.get(h);
+        if (b?.body && b.state === "idle") {
+          b.body.applyTorqueImpulse(
+            { x: (Math.random() - 0.5) * 0.06, y: (Math.random() - 0.5) * 0.06, z: (Math.random() - 0.5) * 0.06 },
+            true,
+          );
+        }
+      }
+      for (const h of [h1, h2]) {
+        const b = this.byCollider.get(h);
+        if (!b || b.state !== "idle" || b.fragility <= 0) continue;
+        const chance = b.fragility * BUBBLE_TYPES[b.kind].collisionMaxPopChance;
+        if (Math.random() < chance) {
+          b.state = "shattering";
+          b.age = 0;
+        }
+      }
+    });
+
     for (let i = this.active.length - 1; i >= 0; i--) {
       const b = this.active[i]!;
       if (b.state === "dead") continue;
@@ -274,6 +315,24 @@ export class BubblePool {
           );
           b.group.position.set(tr.x, tr.y, tr.z);
           b.pos.set(tr.x, tr.y, tr.z);
+          // Physics-driven tumble: contacts apply a torque impulse (see
+          // drainCollisions above), so bumped bubbles visibly spin instead
+          // of just bouncing in place.
+          const rot = b.body.rotation();
+          b.group.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+        }
+
+        // Collision fragility: immortal at spawn, ramps up fastest for the
+        // most valuable kinds. Telegraphed by a brittle jitter + grey creep
+        // so the risk is always visible, never a surprise.
+        b.fragility = collisionFragility(b.kind, b.age);
+        if (b.fragility > 0) {
+          const jitter = b.fragility * 0.05;
+          tmpJitterEuler.set(Math.cos(t * 19 + b.id) * jitter, 0, Math.sin(t * 22 + b.id) * jitter);
+          tmpJitterQuat.setFromEuler(tmpJitterEuler);
+          b.group.quaternion.multiply(tmpJitterQuat);
+          const m = b.shell.material as THREE.MeshPhysicalMaterial;
+          m.color.lerp(new THREE.Color(0x9aa0aa), b.fragility * 0.35 * dt * 6);
         }
 
         // End-of-life warning: shrink shimmer ring, wobble, fade
@@ -327,10 +386,22 @@ export class BubblePool {
           expired.push(b);
           this.despawn(b);
         }
+      } else if (b.state === "shattering") {
+        // Collision shatter: sharper and faster than natural dissipation —
+        // a real, visible loss (bad luck, not a punishment: no score, chain untouched).
+        const k = b.age / 0.28;
+        const jag = 1 + Math.sin(t * 40 + b.id) * 0.15 * (1 - k);
+        b.group.scale.setScalar(b.radius * Math.max(0.001, (1 - k) * jag));
+        const m = b.shell.material as THREE.MeshPhysicalMaterial;
+        m.opacity = Math.max(0, 0.7 * (1 - k));
+        if (k >= 1) {
+          shattered.push(b);
+          this.despawn(b);
+        }
       }
       // "popping" state is animated externally by the pop system.
     }
-    return expired;
+    return { expired, shattered };
   }
 
   despawn(b: Bubble): void {
@@ -339,6 +410,10 @@ export class BubblePool {
     if (b.body) {
       this.physics.removeBody(b.body);
       b.body = null;
+    }
+    if (b.colliderHandle !== null) {
+      this.byCollider.delete(b.colliderHandle);
+      b.colliderHandle = null;
     }
     this.container.remove(b.group);
     const idx = this.active.indexOf(b);
